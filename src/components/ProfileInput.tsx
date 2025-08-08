@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useEffect } from 'react';
 import { User, Edit3, Save, X } from 'lucide-react';
 import { saveToStorage, loadFromStorage, STORAGE_KEYS } from '../utils/storage';
+import { useTranslation } from 'react-i18next';
 
 interface ProfileInputProps {
   profile: string;
@@ -14,6 +15,7 @@ export const ProfileInput: React.FC<ProfileInputProps> = ({
   onProfileSave,
   onClear
 }) => {
+  const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(profile);
   const [error, setError] = useState<string | null>(null);
@@ -50,12 +52,12 @@ export const ProfileInput: React.FC<ProfileInputProps> = ({
     const trimmedContent = editContent.trim();
     
     if (!trimmedContent) {
-      setError('Please enter your profile information');
+      setError(t('profile.errorRequired'));
       return;
     }
 
     if (trimmedContent.length < 50) {
-      setError('Please provide more details about yourself (at least 50 characters)');
+      setError(t('profile.errorMin'));
       return;
     }
 
@@ -96,7 +98,7 @@ export const ProfileInput: React.FC<ProfileInputProps> = ({
       <div className="flex items-center justify-between">
         <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
           <User className="w-4 h-4" />
-          <span>Your Profile</span>
+          <span>{t('profile.label')}</span>
         </label>
         {profile && !isEditing && (
           <div className="flex items-center space-x-2">
@@ -123,22 +125,13 @@ export const ProfileInput: React.FC<ProfileInputProps> = ({
           <textarea
             value={editContent}
             onChange={(e) => setEditContent(e.target.value)}
-            placeholder="Tell us about yourself... 
-
-Example:
-- [Your nationality], [age], [gender], [your degree] ([your university])
-- [X]+ years [your expertise areas] experience  
-- Fluent in [languages], no [other languages]
-- In [current city] or willing to relocate
-- Minimum salary: [amount] [currency]/month
-- Target roles: [role types you want]
-- Prefers [company types you like]"
+            placeholder={t('profile.placeholder')}
             className="w-full h-40 p-4 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
           
           <div className="flex items-center justify-between">
             <p className="text-xs text-gray-500">
-              {editContent.length} characters {editContent.length < 50 && '(minimum 50)'}
+              {editContent.length} {t('jobDesc.chars')} {editContent.length < 50 && '(minimum 50)'}
             </p>
             <div className="flex space-x-2">
               {profile && (
@@ -146,7 +139,7 @@ Example:
                   onClick={handleCancel}
                   className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 transition-colors"
                 >
-                  Cancel
+                  {t('profile.cancel')}
                 </button>
               )}
               <button
@@ -154,7 +147,7 @@ Example:
                 className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center space-x-1"
               >
                 <Save className="w-3 h-3" />
-                <span>Save Profile</span>
+                <span>{t('profile.save')}</span>
               </button>
             </div>
           </div>
@@ -173,10 +166,8 @@ Example:
       ) : (
         <div className="p-4 border-2 border-dashed border-gray-300 rounded-lg text-center">
           <User className="w-6 h-6 text-gray-400 mx-auto mb-2" />
-          <p className="text-gray-600 text-sm mb-2">Add your profile information</p>
-          <p className="text-xs text-gray-500">
-            Tell us about your background, experience, and preferences
-          </p>
+          <p className="text-gray-600 text-sm mb-2">{t('profile.previewHelpTitle')}</p>
+          <p className="text-xs text-gray-500">{t('profile.previewHelpDesc')}</p>
         </div>
       )}
 

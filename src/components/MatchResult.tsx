@@ -1,6 +1,7 @@
 import React from 'react';
 import { CheckCircle, XCircle, Clock } from 'lucide-react';
 import { MatchResult as MatchResultType } from '../types';
+import { useTranslation } from 'react-i18next';
 
 interface MatchResultProps {
   result: MatchResultType;
@@ -8,6 +9,7 @@ interface MatchResultProps {
 
 export const MatchResult: React.FC<MatchResultProps> = ({ result }) => {
   const isMatch = result.decision === 'yes';
+  const { t } = useTranslation();
   
   return (
     <div className={`p-6 rounded-lg border-2 ${
@@ -23,10 +25,8 @@ export const MatchResult: React.FC<MatchResultProps> = ({ result }) => {
         )}
         
         <div className="flex-1">
-          <h3 className={`font-semibold text-lg ${
-            isMatch ? 'text-green-800' : 'text-red-800'
-          }`}>
-            {isMatch ? 'Match Found!' : 'Not a Match'}
+          <h3 className={`font-semibold text-lg ${isMatch ? 'text-green-800' : 'text-red-800'}`}>
+            {isMatch ? t('match.found') : t('match.notFound')}
           </h3>
           
           <p className={`mt-2 ${
@@ -37,7 +37,7 @@ export const MatchResult: React.FC<MatchResultProps> = ({ result }) => {
           
           <div className="flex items-center space-x-1 mt-3 text-xs text-gray-500">
             <Clock className="w-3 h-3" />
-            <span>Analyzed at {result.timestamp.toLocaleTimeString()}</span>
+            <span>{t('match.analyzedAt')} {result.timestamp.toLocaleTimeString()}</span>
           </div>
         </div>
       </div>

@@ -1,14 +1,15 @@
-import { model } from '../../config/gemini';
 import { RESUME_OPTIMIZER_SYSTEM_PROMPT } from './prompts/resumeOptimizerPrompt';
 import { CVData, JobDescription, UserProfile } from '../../types';
 import { cleanDocumentContent } from '../../utils/textUtils';
+import { sendAiMessage, AiHistoryItem } from './aiProxyClient';
+import { AppError, ErrorCode, mapUnknownError } from '../../utils/errors';
 
 export class ResumeOptimizerService {
-  private chat: any = null;
+  private history: AiHistoryItem[] = [];
   private cvData: CVData | null = null;
   private jobDescription: JobDescription | null = null;
   private userProfile: UserProfile | null = null;
-  private resumeData: any = {};
+  private resumeData: { targetRole?: string; experienceLevel?: string; keyFocus?: string } = {};
   private isCollectingData = false;
   private currentStep = 0;
   
@@ -39,18 +40,10 @@ ${jobDescription.content}
 
 You now have the candidate's ${userProfile ? 'profile, ' : ''}CV and the job description. You can help create an ATS-optimized resume.`;
 
-    this.chat = model.startChat({
-      history: [
-        {
-          role: 'user',
-          parts: [{ text: initialContext }]
-        },
-        {
-          role: 'model',
-          parts: [{ text: `I have analyzed the candidate's ${userProfile ? 'profile, ' : ''}CV and job description. I\'m ready to help you create an ATS-optimized resume tailored for this position.` }]
-        }
-      ]
-    });
+    this.history = [
+      { role: 'user', parts: [{ text: initialContext }] },
+      { role: 'model', parts: [{ text: `I have analyzed the candidate's ${userProfile ? 'profile, ' : ''}CV and job description. I\'m ready to help you create an ATS-optimized resume tailored for this position.` }] }
+    ];
   }
 
   startDataCollection(): string {
@@ -86,7 +79,7 @@ ${nextStep.question}`;
   }
 
   private async generateOptimizedResume(): Promise<string> {
-    if (!this.chat) {
+    if (!this.history.length) {
       throw new Error('Chat not initialized');
     }
 
@@ -117,10 +110,23 @@ CRITICAL INSTRUCTIONS:
 - Focus on achievements that demonstrate value and impact
 - Ensure all content is ATS-compatible and scannable
 
-Generate ONLY the resume content following the mandatory structure. No introductory text, no explanations, no AI responses - just the clean resume content ready for export.`;
+Generate ONLY the resume content following the mandatory structure. No introductory text, no explanations, no AI responses - just the clean resume content ready for export.
+\n\nRESPONSE FORMAT (MANDATORY):\nOutput ONLY valid JSON with this exact shape and nothing else (no prose, no code fences):\n{\n  "content": "string (the full, final resume content)"\n}`;
 
-      const result = await this.chat.sendMessage(prompt);
-      let optimizedResume = result.response.text();
+      const raw = await sendAiMessage(this.history, prompt);
+      // Parse JSON content robustly
+      const sanitizeToJson = (text: string): string => {
+        const withoutFences = text.replace(/```json|```/gi, '').trim();
+        const match = withoutFences.match(/\{[\s\S]*\}/);
+        return match ? match[0] : withoutFences;
+      };
+      let optimizedResume: string;
+      try {
+        const parsed = JSON.parse(sanitizeToJson(raw));
+        optimizedResume = typeof parsed?.content === 'string' ? parsed.content : raw;
+      } catch {
+        optimizedResume = raw;
+      }
       
       // Clean the resume content using utility function
       optimizedResume = cleanDocumentContent(optimizedResume);
@@ -138,7 +144,8 @@ ${optimizedResume}
     } catch (error) {
       this.isCollectingData = false;
       this.resumeData = {};
-      throw error;
+      const mapped = mapUnknownError(error);
+      throw new AppError({ code: mapped.code || ErrorCode.AiFailed, messageKey: 'errors.aiFailed', cause: error });
     }
   }
 
@@ -147,7 +154,7 @@ ${optimizedResume}
   }
 
   reset() {
-    this.chat = null;
+    this.history = [];
     this.cvData = null;
     this.jobDescription = null;
     this.userProfile = null;

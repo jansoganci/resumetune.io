@@ -1,9 +1,11 @@
-import { model } from '../../config/gemini';
-import { JOB_MATCH_SYSTEM_PROMPT } from './prompts/jobMatchPrompt';
+import { JOB_MATCH_SYSTEM_PROMPT, JOB_MATCH_JSON_INSTRUCTION } from './prompts/jobMatchPrompt';
 import { MatchResult, CVData, JobDescription, UserProfile } from '../../types';
+import { sendAiMessage, AiHistoryItem } from './aiProxyClient';
+import { z } from 'zod';
+import { AppError, ErrorCode, mapUnknownError } from '../../utils/errors';
 
 export class JobMatchService {
-  private chat: any = null;
+  private history: AiHistoryItem[] = [];
 
   async initializeChat(cvData: CVData, jobDescription: JobDescription, userProfile?: UserProfile) {
     const profileSection = userProfile ? `
@@ -22,59 +24,61 @@ ${jobDescription.content}
 
 You now have the candidate's ${userProfile ? 'profile, ' : ''}CV and the job description. You can analyze them and provide match recommendations.`;
 
-    this.chat = model.startChat({
-      history: [
-        {
-          role: 'user',
-          parts: [{ text: initialContext }]
-        },
-        {
-          role: 'model',
-          parts: [{ text: 'I have analyzed the CV and job description. I\'m ready to provide a match recommendation.' }]
-        }
-      ]
-    });
+    this.history = [
+      { role: 'user', parts: [{ text: initialContext }] },
+      { role: 'model', parts: [{ text: 'I have analyzed the CV and job description. I\'m ready to provide a match recommendation.' }] }
+    ];
   }
 
   async checkMatch(): Promise<MatchResult> {
-    if (!this.chat) {
+    if (!this.history.length) {
       throw new Error('Chat not initialized. Please provide CV and job description first.');
     }
 
     try {
-      const prompt = `Based on the CV and job description provided, should this candidate apply for this position? Give me a direct yes/no answer in the specified format.`;
-      
-      const result = await this.chat.sendMessage(prompt);
-      const response = result.response.text();
-      
-      const isMatch = response.toLowerCase().includes('yes, you should apply');
-      
+      const prompt = `Based on the CV and job description provided, decide whether the candidate should apply. ${JOB_MATCH_JSON_INSTRUCTION}`;
+      const response = await sendAiMessage(this.history, prompt);
+
+      // Be robust to models that wrap JSON in code fences or add extra text
+      const sanitizeToJson = (text: string): string => {
+        const withoutFences = text.replace(/```json|```/gi, '').trim();
+        const match = withoutFences.match(/\{[\s\S]*\}/);
+        return match ? match[0] : withoutFences;
+      };
+
+      const Schema = z.object({ decision: z.enum(['yes','no']), reason: z.string().max(200) });
+      const parsed = Schema.parse(JSON.parse(sanitizeToJson(response)));
+
       return {
-        decision: isMatch ? 'yes' : 'no',
-        message: response,
+        decision: parsed.decision,
+        message: parsed.reason,
         timestamp: new Date()
       };
     } catch (error) {
       console.error('Error checking match:', error);
-      throw new Error('Failed to analyze job match');
+      const mapped = mapUnknownError(error);
+      throw new AppError({ code: mapped.code || ErrorCode.AiFailed, messageKey: 'errors.aiFailed', cause: error });
     }
   }
 
   async sendMessage(message: string): Promise<string> {
-    if (!this.chat) {
-      throw new Error('Chat not initialized. Please provide CV and job description first.');
+    if (!this.history.length) {
+      throw new AppError({ code: ErrorCode.InvalidInput, messageKey: 'errors.invalidInput', message: 'Chat not initialized. Please provide CV and job description first.' });
     }
 
     try {
-      const result = await this.chat.sendMessage(message);
-      return result.response.text();
+      const reply = await sendAiMessage(this.history, message);
+      this.history.push({ role: 'user', parts: [{ text: message }] });
+      this.history.push({ role: 'model', parts: [{ text: reply }] });
+      return reply;
     } catch (error) {
       console.error('Error sending message:', error);
-      throw new Error('Failed to send message');
+      const mapped = mapUnknownError(error);
+      throw new AppError({ code: mapped.code || ErrorCode.AiFailed, messageKey: 'errors.aiFailed', cause: error });
     }
   }
 
   reset() {
-    this.chat = null;
+    this.history = [];
   }
 }

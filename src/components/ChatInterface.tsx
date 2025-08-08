@@ -1,9 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, MessageCircle, User, Bot, Download, FileText } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { useToast } from './ToastProvider';
 import { ChatMessage } from '../types';
 import ReactMarkdown from 'react-markdown';
 import { exportToPDF, exportToDocx } from '../utils/documentExport';
 import { validateDocumentContent } from '../utils/textUtils';
+import { trackEvent } from '../utils/analytics';
 
 interface ChatInterfaceProps {
   messages: ChatMessage[];
@@ -20,6 +23,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   disabled = false,
   jobDescription = null
 }) => {
+  const { t } = useTranslation();
+  const toast = useToast();
   const [inputMessage, setInputMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -53,6 +58,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
   };
 
+  // Localized quick prompts still in English intentionally to guide AI; UI labels are localized
+  const qaCover = 'Generate a cover letter for this position';
+  const qaResume = 'Optimize my resume for this position';
+  const qaReqs = 'What are the key requirements for this role?';
+  const qaSkills = 'How well do my skills match this position?';
+
   const handleExportPDF = async (content: string) => {
     try {
       await exportToPDF({ 
@@ -60,9 +71,10 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         jobTitle: jobDescription?.jobTitle,
         companyName: jobDescription?.companyName
       });
+      trackEvent('export_pdf', { hasJobTitle: Boolean(jobDescription?.jobTitle), hasCompany: Boolean(jobDescription?.companyName) });
     } catch (error) {
       console.error('Failed to export PDF:', error);
-      alert('Failed to export PDF. Please try again.');
+      toast.error('errors.exportFailed');
     }
   };
 
@@ -73,9 +85,10 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         jobTitle: jobDescription?.jobTitle,
         companyName: jobDescription?.companyName
       });
+      trackEvent('export_docx', { hasJobTitle: Boolean(jobDescription?.jobTitle), hasCompany: Boolean(jobDescription?.companyName) });
     } catch (error) {
       console.error('Failed to export DOCX:', error);
-      alert('Failed to export DOCX. Please try again.');
+      toast.error('errors.exportFailed');
     }
   };
 
@@ -93,43 +106,41 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       {/* Header */}
       <div className="flex items-center space-x-2 p-3 border-b border-gray-200 bg-gray-50 rounded-t-lg">
         <MessageCircle className="w-5 h-5 text-blue-600" />
-        <h3 className="font-medium text-gray-800">Chat with AI Recruiter</h3>
+        <h3 className="font-medium text-gray-800">{t('chat.title')}</h3>
       </div>
 
       {/* Quick Actions */}
       {!disabled && (
         <div className={`p-3 border-b border-gray-100 bg-gray-50 ${messages.length > 0 ? 'py-2' : ''}`}>
-          <p className={`text-xs text-gray-600 mb-2 ${messages.length > 0 ? 'mb-1' : ''}`}>
-            {messages.length === 0 ? 'Quick actions:' : 'Quick actions:'}
-          </p>
+          <p className={`text-xs text-gray-600 mb-2 ${messages.length > 0 ? 'mb-1' : ''}`}>{t('chat.quickActions')}</p>
           <div className="flex flex-wrap gap-2">
             <button
-              onClick={() => handleQuickAction('Generate a cover letter for this position')}
+              onClick={() => handleQuickAction(qaCover)}
               disabled={isLoading}
               className={`px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 disabled:opacity-50 transition-colors ${messages.length > 0 ? 'px-2 py-0.5' : ''}`}
             >
-              📝 Generate Cover Letter
+              📝 {t('chat.qaCover')}
             </button>
             <button
-              onClick={() => handleQuickAction('Optimize my resume for this position')}
+              onClick={() => handleQuickAction(qaResume)}
               disabled={isLoading}
               className={`px-3 py-1 text-xs bg-purple-100 text-purple-700 rounded-full hover:bg-purple-200 disabled:opacity-50 transition-colors ${messages.length > 0 ? 'px-2 py-0.5' : ''}`}
             >
-              🎯 Optimize Resume
+              🎯 {t('chat.qaResume')}
             </button>
             <button
-              onClick={() => handleQuickAction('What are the key requirements for this role?')}
+              onClick={() => handleQuickAction(qaReqs)}
               disabled={isLoading}
               className={`px-3 py-1 text-xs bg-green-100 text-green-700 rounded-full hover:bg-green-200 disabled:opacity-50 transition-colors ${messages.length > 0 ? 'px-2 py-0.5' : ''}`}
             >
-              📋 Key Requirements
+              📋 {t('chat.qaReqs')}
             </button>
             <button
-              onClick={() => handleQuickAction('How well do my skills match this position?')}
+              onClick={() => handleQuickAction(qaSkills)}
               disabled={isLoading}
               className={`px-3 py-1 text-xs bg-purple-100 text-purple-700 rounded-full hover:bg-purple-200 disabled:opacity-50 transition-colors ${messages.length > 0 ? 'px-2 py-0.5' : ''}`}
             >
-              📊 Skills Match
+              📊 {t('chat.qaSkills')}
             </button>
           </div>
         </div>
@@ -139,8 +150,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         {messages.length === 0 ? (
           <div className="text-center text-gray-500 py-8">
             <Bot className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-            <p>Ready to help with job analysis and cover letters!</p>
-            <p className="text-xs mt-1">Try the quick actions above or ask any question</p>
+            <p>{t('chat.emptyTitle')}</p>
+            <p className="text-xs mt-1">{t('chat.emptySubtitle')}</p>
           </div>
         ) : (
           messages.map((message) => (
@@ -177,14 +188,14 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                               className="flex items-center space-x-1 px-3 py-1 text-xs bg-red-100 text-red-700 rounded-full hover:bg-red-200 transition-colors"
                             >
                               <Download className="w-3 h-3" />
-                              <span>PDF</span>
+                              <span>{t('chat.exportPDF')}</span>
                             </button>
                             <button
                               onClick={() => handleExportDocx(message.content)}
                               className="flex items-center space-x-1 px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 transition-colors"
                             >
                               <FileText className="w-3 h-3" />
-                              <span>DOCX</span>
+                              <span>{t('chat.exportDOCX')}</span>
                             </button>
                           </div>
                         )}
@@ -227,7 +238,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             type="text"
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
-            placeholder={disabled ? "Add profile, contact info, CV and job description first..." : "Ask about the position, your fit, or get advice..."}
+            placeholder={disabled ? t('chat.inputPlaceholderDisabled') : t('chat.inputPlaceholderReady')}
             disabled={disabled || isLoading}
             className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
           />

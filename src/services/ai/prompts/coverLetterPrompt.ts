@@ -36,3 +36,5 @@ You are an AI assistant specialized in writing high-impact, personalized cover l
 
 IMPORTANT: Output ONLY the final, clean cover letter text as a single, continuous block.
 `;
+
+export const COVER_LETTER_JSON_INSTRUCTION = `\n\nRESPONSE FORMAT (MANDATORY):\nOutput ONLY valid JSON with this exact shape and nothing else (no prose, no code fences):\n{\n  "content": "string (the full, final cover letter body)"\n}`;

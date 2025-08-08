@@ -31,12 +31,12 @@ export const extractContactInfo = (cvContent: string, userProfile?: string): Ext
     linkedin: null
   };
 
-  const confidence = {
-    name: 'none' as const,
-    email: 'none' as const,
-    phone: 'none' as const,
-    location: 'none' as const,
-    linkedin: 'none' as const
+  const confidence: ExtractionResult['confidence'] = {
+    name: 'none',
+    email: 'none',
+    phone: 'none',
+    location: 'none',
+    linkedin: 'none'
   };
 
   // Extract Email (highest priority - most reliable)
@@ -84,7 +84,7 @@ export const extractContactInfo = (cvContent: string, userProfile?: string): Ext
   }
 
   // Extract Location (look for city, country patterns)
-  const locationPatterns = [
+  const locationPatterns: RegExp[] = [
     // City, Country format
     /([A-Z][a-zA-Z\s]+),\s*([A-Z][a-zA-Z\s]+)/g,
     // Just country names

@@ -3,6 +3,7 @@ import { CoverLetterService } from './ai/coverLetterService';
 import { ResumeOptimizerService } from './ai/resumeOptimizerService';
 import { ChatMessage, MatchResult, CVData, JobDescription, UserProfile } from '../types';
 import { ContactInfo } from '../components/ContactInfoInput';
+import { AppError, ErrorCode, mapUnknownError } from '../utils/errors';
 
 export class GeminiService {
   private jobMatchService = new JobMatchService();
@@ -26,7 +27,7 @@ export class GeminiService {
 
   async checkMatch(): Promise<MatchResult> {
     if (!this.cvData || !this.jobDescription) {
-      throw new Error('CV and job description must be provided first');
+      throw new AppError({ code: ErrorCode.InvalidInput, messageKey: 'errors.invalidInput', message: 'CV and job description must be provided first' });
     }
 
     return await this.jobMatchService.checkMatch();
@@ -34,7 +35,7 @@ export class GeminiService {
 
   async sendMessage(message: string, contactInfo?: ContactInfo): Promise<string> {
     if (!this.cvData || !this.jobDescription) {
-      throw new Error('Chat not initialized. Please add profile, upload CV and job description first.');
+      throw new AppError({ code: ErrorCode.InvalidInput, messageKey: 'errors.invalidInput', message: 'Chat not initialized. Please add profile, upload CV and job description first.' });
     }
 
     // Check if user wants to generate cover letter
@@ -50,10 +51,13 @@ export class GeminiService {
       
       // Generate cover letter directly using provided contact info
       try {
-        return await this.coverLetterService.generateCoverLetter(contactInfo);
+        const reply = await this.coverLetterService.generateCoverLetter(contactInfo);
+        try { (await import('../utils/analytics')).trackEvent('generate_cover_letter'); } catch {}
+        return reply;
       } catch (error) {
         console.error('Cover letter generation error:', error);
-        return 'Sorry, I encountered an error while generating your cover letter. Please try again.';
+        const mapped = mapUnknownError(error);
+        throw new AppError({ code: mapped.code || ErrorCode.AiFailed, messageKey: 'errors.aiFailed', cause: error });
       }
     }
 
@@ -65,6 +69,7 @@ export class GeminiService {
       
       // Start resume optimization data collection
       this.resumeOptimizerService.startDataCollection();
+      try { (await import('../utils/analytics')).trackEvent('optimize_resume'); } catch {}
       return `🎯 **Resume Optimizer Started!**
 
 I'll help you create an ATS-optimized resume tailored specifically for this position! I need to collect a few details first.
@@ -79,7 +84,12 @@ What specific role title should I optimize for? (e.g., "Senior SAP Consultant", 
     }
 
     // Default to job match service for general questions
-    return await this.jobMatchService.sendMessage(message);
+    try {
+      return await this.jobMatchService.sendMessage(message);
+    } catch (error) {
+      const mapped = mapUnknownError(error);
+      throw new AppError({ code: mapped.code || ErrorCode.AiFailed, messageKey: 'errors.aiFailed', cause: error });
+    }
   }
 
   reset() {

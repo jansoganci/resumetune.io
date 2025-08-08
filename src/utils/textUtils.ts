@@ -89,8 +89,9 @@ export const validateDocumentContent = (content: string, type: 'resume' | 'cover
     return hasRequiredSections && isSubstantial && noArtifacts;
   } else {
     // Cover letter should have proper structure
-    const hasGreeting = cleanContent.toLowerCase().includes('dear');
-    const hasClosing = cleanContent.toLowerCase().includes('sincerely');
+    const lower = cleanContent.toLowerCase();
+    const hasGreeting = lower.includes('dear') || lower.includes('sayın') || lower.includes('merhaba');
+    const hasClosing = lower.includes('sincerely') || lower.includes('saygılarımla') || lower.includes('sevgiler');
     const isSubstantial = cleanContent.length > 200;
     const noArtifacts = !cleanContent.includes('✅') && !cleanContent.includes('🎉');
     
@@ -208,9 +209,9 @@ export const extractCoverLetterBody = (content: string): string => {
     .trim();
   
   // Split into logical paragraphs and clean up
-  const sentences = bodyContent.split(/\.\s+/);
-  const paragraphs = [];
-  let currentParagraph = [];
+  const sentences: string[] = bodyContent.split(/\.\s+/);
+  const paragraphs: string[] = [];
+  let currentParagraph: string[] = [];
   
   sentences.forEach((sentence, index) => {
     currentParagraph.push(sentence.trim());
@@ -249,13 +250,10 @@ export const extractCoverLetterFromAIResponse = (aiResponse: string): string => 
 };
 
 export const formatCoverLetterHeader = (contactInfo: any): string => {
-  // Debug: Log contact info in formatting function
-  console.log('formatCoverLetterHeader - Received contact info:', contactInfo);
-  console.log('formatCoverLetterHeader - contactInfo.location specifically:', contactInfo.location);
-  console.log('formatCoverLetterHeader - typeof contactInfo.location:', typeof contactInfo.location);
-  console.log('formatCoverLetterHeader - contactInfo.location === null:', contactInfo.location === null);
-  console.log('formatCoverLetterHeader - contactInfo.location === undefined:', contactInfo.location === undefined);
-  console.log('formatCoverLetterHeader - contactInfo.location === "":', contactInfo.location === '');
+  // Debug: Restricted to dev to prevent PII exposure in production logs
+  if (import.meta.env.DEV) {
+    console.log('formatCoverLetterHeader(dev) - received keys:', Object.keys(contactInfo || {}));
+  }
   
   // Format contact information in professional 2-3 line format
   const headerLines = [];
@@ -270,25 +268,18 @@ export const formatCoverLetterHeader = (contactInfo: any): string => {
     contactInfo.location || 'Your City, Country'
   ].filter(Boolean).join(' | ');
   
-  // Debug: Log the contact line being created
-  console.log('formatCoverLetterHeader - Contact line:', contactLine);
-  console.log('formatCoverLetterHeader - Contact line parts before filter:', [
-    contactInfo.email || 'your.email@example.com',
-    contactInfo.phone || null,
-    contactInfo.location || 'Your City, Country'
-  ]);
-  console.log('formatCoverLetterHeader - Contact line parts after filter:', [
-    contactInfo.email || 'your.email@example.com',
-    contactInfo.phone || null,
-    contactInfo.location || 'Your City, Country'
-  ].filter(Boolean));
+  // Minimal dev-only insight
+  if (import.meta.env.DEV) {
+    console.log('formatCoverLetterHeader(dev) - contact line length:', contactLine.length);
+  }
   
   if (contactLine) {
     headerLines.push(contactLine);
   }
   
-  console.log('formatCoverLetterHeader - Final header lines:', headerLines);
-  console.log('formatCoverLetterHeader - Final header result:', headerLines.join('\n'));
+  if (import.meta.env.DEV) {
+    console.log('formatCoverLetterHeader(dev) - final lines count:', headerLines.length);
+  }
   
   // Line 3: LinkedIn/Portfolio (if provided)
   if (contactInfo.linkedin) {

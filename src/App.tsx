@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { FileText, Zap, AlertCircle, X } from 'lucide-react';
+import { FileText, Zap, AlertCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { LanguageSwitcher } from './components/LanguageSwitcher';
+import { useToast } from './components/ToastProvider';
+import { handleApiError } from './utils/errors';
 import { ProfileInput } from './components/ProfileInput';
 import { ContactInfoInput, ContactInfo } from './components/ContactInfoInput';
 import { FileUpload } from './components/FileUpload';
@@ -11,6 +15,7 @@ import { ChatMessage, MatchResult as MatchResultType, CVData, JobDescription, Us
 import { saveToStorage, loadFromStorage, removeFromStorage, STORAGE_KEYS } from './utils/storage';
 
 function App() {
+  const { t } = useTranslation();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [contactInfo, setContactInfo] = useState<ContactInfo | null>(null);
   const [cvData, setCvData] = useState<CVData | null>(null);
@@ -19,9 +24,8 @@ function App() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isChatLoading, setIsChatLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [showError, setShowError] = useState(false);
   const [geminiService] = useState(() => new GeminiService());
+  const toast = useToast();
 
   // Load saved data on component mount
   useEffect(() => {
@@ -59,6 +63,12 @@ function App() {
     }
   }, []);
 
+  const resetAnalysis = useCallback(() => {
+    setMatchResult(null);
+    setChatMessages([]);
+    geminiService.reset();
+  }, [geminiService]);
+
   const handleProfileSave = useCallback((content: string) => {
     const newProfile = {
       content,
@@ -66,9 +76,9 @@ function App() {
     };
     setUserProfile(newProfile);
     saveToStorage(STORAGE_KEYS.USER_PROFILE, newProfile);
-    clearError();
+    toast.clear();
     resetAnalysis();
-  }, []);
+  }, [toast, resetAnalysis]);
 
   const handleContactInfoSave = useCallback((contactData: ContactInfo) => {
     const newContactInfo = {
@@ -81,8 +91,8 @@ function App() {
     
     setContactInfo(newContactInfo);
     saveToStorage(STORAGE_KEYS.CONTACT_INFO, newContactInfo);
-    clearError();
-  }, []);
+    toast.clear();
+  }, [toast]);
 
   const handleCVUpload = useCallback((content: string, fileName: string) => {
     // Handle both PDF and text sources with priority logic already applied in FileUpload
@@ -94,9 +104,9 @@ function App() {
     };
     setCvData(newCVData);
     saveToStorage(STORAGE_KEYS.CV_DATA, newCVData);
-    clearError();
+    toast.clear();
     resetAnalysis();
-  }, []);
+  }, [toast, resetAnalysis]);
 
   const handleJobDescriptionChange = useCallback((content: string, jobTitle?: string, companyName?: string) => {
     const newJobData = {
@@ -107,31 +117,12 @@ function App() {
     };
     setJobDescription(newJobData);
     saveToStorage(STORAGE_KEYS.JOB_DESCRIPTION, newJobData);
-    clearError();
+    toast.clear();
     // Don't reset analysis, just clear previous result
     setMatchResult(null);
-  }, []);
+  }, [toast]);
 
-  const resetAnalysis = useCallback(() => {
-    setMatchResult(null);
-    setChatMessages([]);
-    geminiService.reset();
-  }, [geminiService]);
-
-  const showErrorMessage = useCallback((message: string) => {
-    setError(message);
-    setShowError(true);
-    // Auto-hide error after 5 seconds
-    setTimeout(() => {
-      setShowError(false);
-      setTimeout(() => setError(null), 300); // Wait for fade out animation
-    }, 5000);
-  }, []);
-
-  const clearError = useCallback(() => {
-    setShowError(false);
-    setTimeout(() => setError(null), 300);
-  }, []);
+  // Inline error state removed; using global ToastProvider
 
   const initializeChat = useCallback(async () => {
     if (!cvData || !jobDescription) return;
@@ -139,48 +130,50 @@ function App() {
     try {
       await geminiService.initializeChat(cvData, jobDescription, userProfile || undefined);
     } catch (err) {
-      showErrorMessage(err instanceof Error ? err.message : 'Failed to initialize chat');
+      const { messageKey, params } = handleApiError(err);
+      toast.error(messageKey, params);
     }
-  }, [cvData, jobDescription, userProfile, geminiService, showErrorMessage]);
+  }, [cvData, jobDescription, userProfile, geminiService, toast]);
 
   const handleCheckMatch = useCallback(async () => {
     if (!userProfile) {
-      showErrorMessage('Please add your profile information first.');
+      toast.error('errors.invalidInput');
       return;
     }
     
     if (!cvData || !jobDescription) {
-      showErrorMessage('Please upload your CV and provide a job description.');
+      toast.error('errors.invalidInput');
       return;
     }
 
     setIsAnalyzing(true);
-    clearError();
+    toast.clear();
 
     try {
       await initializeChat();
       const result = await geminiService.checkMatch();
       setMatchResult(result);
     } catch (err) {
-      showErrorMessage(err instanceof Error ? err.message : 'Failed to analyze job match');
+      const { messageKey, params } = handleApiError(err);
+      toast.error(messageKey, params);
     } finally {
       setIsAnalyzing(false);
     }
-  }, [userProfile, cvData, jobDescription, showErrorMessage, clearError, initializeChat, geminiService]);
+  }, [userProfile, cvData, jobDescription, toast, initializeChat, geminiService]);
 
   const handleSendMessage = useCallback(async (message: string) => {
     if (!userProfile) {
-      showErrorMessage('Please add your profile information first.');
+      toast.error('errors.invalidInput');
       return;
     }
     
     if (!contactInfo) {
-      showErrorMessage('Please add your contact information first.');
+      toast.error('errors.invalidInput');
       return;
     }
     
     if (!cvData || !jobDescription) {
-      showErrorMessage('Please upload your CV and provide a job description.');
+      toast.error('errors.invalidInput');
       return;
     }
 
@@ -193,7 +186,7 @@ function App() {
 
     setChatMessages(prev => [...prev, userMessage]);
     setIsChatLoading(true);
-    clearError();
+    toast.clear();
 
     try {
       if (chatMessages.length === 0) {
@@ -211,11 +204,12 @@ function App() {
 
       setChatMessages(prev => [...prev, assistantMessage]);
     } catch (err) {
-      showErrorMessage(err instanceof Error ? err.message : 'Failed to send message');
+      const { messageKey, params } = handleApiError(err);
+      toast.error(messageKey, params);
     } finally {
       setIsChatLoading(false);
     }
-  }, [userProfile, contactInfo, cvData, jobDescription, showErrorMessage, clearError, chatMessages.length, initializeChat, geminiService]);
+  }, [userProfile, contactInfo, cvData, jobDescription, toast, chatMessages.length, initializeChat, geminiService]);
 
   const canAnalyze = userProfile && contactInfo && cvData && jobDescription && !isAnalyzing;
   const canChat = userProfile && contactInfo && cvData && jobDescription;
@@ -225,14 +219,17 @@ function App() {
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-blue-600 rounded-lg">
-              <Zap className="w-6 h-6 text-white" />
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-blue-600 rounded-lg">
+                <Zap className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">{t('appTitle')}</h1>
+                <p className="text-sm text-gray-600">{t('appSubtitle')}</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">CareerBoost AI</h1>
-              <p className="text-sm text-gray-600">Your AI career companion for job matching, cover letters, and resume optimization</p>
-            </div>
+            <div className="flex items-center"><LanguageSwitcher /></div>
           </div>
         </div>
       </header>
@@ -269,15 +266,15 @@ function App() {
           <div>
             <div className="flex items-center space-x-2 mb-3">
               <FileText className="w-5 h-5 text-blue-600" />
-              <span className="text-lg font-medium text-gray-900">Your CV</span>
+              <span className="text-lg font-medium text-gray-900">{t('yourCV')}</span>
               {cvData && (
-                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                  Source: {cvData.fileName}
+              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                  {t('source.pasted')}: {cvData.fileName}
                 </span>
               )}
             </div>
             <FileUpload
-              label="Add Your CV Content"
+              label={t('addYourCV')}
               onFileProcessed={handleCVUpload}
               currentFile={cvData?.fileName}
               compact={true}
@@ -313,12 +310,12 @@ function App() {
               {isAnalyzing ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  <span>Analyzing Match...</span>
+                  <span>{t('analyzingMatch')}</span>
                 </>
               ) : (
                 <>
                   <Zap className="w-4 h-4" />
-                  <span>Check Job Match</span>
+                  <span>{t('checkJobMatch')}</span>
                 </>
               )}
             </button>
@@ -335,22 +332,22 @@ function App() {
 
         {/* AI Disclaimer */}
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-6">
-          <h3 className="font-semibold text-amber-900 mb-3 flex items-center">
+            <h3 className="font-semibold text-amber-900 mb-3 flex items-center">
             <AlertCircle className="w-5 h-5 mr-2" />
-            Important Disclaimer
+            {t('disclaimerTitle')}
           </h3>
           <div className="space-y-3 text-amber-800 text-sm">
             <p>
-              <strong>🤖 AI-Generated Content:</strong> All outputs (job matches, cover letters, resume optimizations) are generated by AI and may contain errors, inaccuracies, or inappropriate suggestions.
+              <strong>{t('disclaimer.aiGeneratedTitle')}</strong> {t('disclaimer.aiGeneratedBody')}
             </p>
             <p>
-              <strong>✅ Your Responsibility:</strong> Always carefully review, edit, and verify all AI-generated content before using it for job applications. Ensure accuracy of personal information, dates, company names, and achievements.
+              <strong>{t('disclaimer.responsibilityTitle')}</strong> {t('disclaimer.responsibilityBody')}
             </p>
             <p>
-              <strong>🔒 Data Privacy:</strong> Your CV and personal information are processed locally and sent to Google's Gemini AI for analysis. Do not include sensitive information you wouldn't want processed by AI services.
+              <strong>{t('disclaimer.privacyTitle')}</strong> {t('disclaimer.privacyBody')}
             </p>
             <p>
-              <strong>⚖️ No Liability:</strong> We do not guarantee job application success or take responsibility for any consequences of using AI-generated content. Use this tool as a starting point, not a final solution.
+              <strong>{t('disclaimer.liabilityTitle')}</strong> {t('disclaimer.liabilityBody')}
             </p>
           </div>
         </div>
@@ -358,7 +355,7 @@ function App() {
         {/* Chat Interface */}
         {canChat && (
           <div className="bg-white rounded-lg shadow-sm p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">AI Career Advisor</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('aiAdvisor')}</h3>
             <ChatInterface
               messages={chatMessages}
               onSendMessage={handleSendMessage}
@@ -371,53 +368,33 @@ function App() {
 
         {/* Instructions */}
         <div className="bg-blue-50 rounded-lg p-6">
-          <h3 className="font-semibold text-blue-900 mb-3">How to use:</h3>
+          <h3 className="font-semibold text-blue-900 mb-3">{t('howToDetailed.stepsTitle')}</h3>
           <ol className="list-decimal list-inside space-y-2 text-blue-800 text-sm">
-            <li>Add your profile information (background, experience, preferences)</li>
-            <li>Add your contact information (name, email, location, etc.)</li>
-            <li><strong>Paste your CV text directly</strong> (recommended) or upload PDF/Word file</li>
-            <li>Paste the job description in the text area</li>
-            <li>Click "Check Job Match" for personalized yes/no recommendation</li>
-            <li>Use the chat to ask detailed questions about the position and your fit</li>
+            <li>{t('howToDetailed.step1')}</li>
+            <li>{t('howToDetailed.step2')}</li>
+            <li>{t('howToDetailed.step3')}</li>
+            <li>{t('howToDetailed.step4')}</li>
+            <li>{t('howToDetailed.step5')}</li>
+            <li>{t('howToDetailed.step6')}</li>
           </ol>
           <div className="mt-3 p-3 bg-blue-100 rounded-lg">
             <p className="text-xs text-blue-800">
-              <strong>💡 Best Practice:</strong> Open your CV in Word/PDF → Select All (Ctrl+A) → Copy (Ctrl+C) → Paste in the text area. 
-              This method preserves exact formatting, ensures accurate work history ordering, and provides the highest quality AI analysis for job matching and resume optimization.
+              <strong>{t('howToDetailed.bestPracticeTitle')}</strong> {t('howToDetailed.bestPracticeBody')}
             </p>
           </div>
           <div className="mt-3 p-3 bg-green-100 rounded-lg border border-green-200">
-            <h4 className="font-semibold text-green-800 mb-2">✨ Why Text Input Works Better:</h4>
+            <h4 className="font-semibold text-green-800 mb-2">{t('howToDetailed.whyTextTitle')}</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-green-700">
-              <div>• <strong>Perfect accuracy:</strong> No parsing errors</div>
-              <div>• <strong>Faster processing:</strong> Instant analysis</div>
-              <div>• <strong>Easy editing:</strong> Make quick improvements</div>
-              <div>• <strong>Better results:</strong> Higher quality outputs</div>
+              <div>{t('howToDetailed.whyTextBullet1')}</div>
+              <div>{t('howToDetailed.whyTextBullet2')}</div>
+              <div>{t('howToDetailed.whyTextBullet3')}</div>
+              <div>{t('howToDetailed.whyTextBullet4')}</div>
             </div>
           </div>
         </div>
       </main>
 
-      {/* Toast Error Notification */}
-      {error && (
-        <div className={`fixed bottom-4 right-4 max-w-md z-50 transition-all duration-300 transform ${
-          showError ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'
-        }`}>
-          <div className="bg-red-500 text-white p-4 rounded-lg shadow-lg flex items-start space-x-3">
-            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <h3 className="font-medium">Error</h3>
-              <p className="text-sm mt-1 opacity-90">{error}</p>
-            </div>
-            <button
-              onClick={clearError}
-              className="text-white hover:text-gray-200 transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Inline error toast removed; using ToastProvider */}
     </div>
   );
 }

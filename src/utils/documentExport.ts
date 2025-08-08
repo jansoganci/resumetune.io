@@ -92,8 +92,7 @@ export const exportToPDF = async (data: DocumentData) => {
     line = fixCharacterEncoding(line);
     
     // Additional specific pattern fixes for common issues
-    line = line.replace(/S\s+a\s+b\s+a\s+n\s+c\s*[1ı]\s*Ü\s+n\s+i\s+v\s+e\s+r\s+s\s+i\s+t\s+e\s+s\s+i/gi, 'University Name');
-    line = line.replace(/M\s+e\s+r\s+c\s+e\s+d\s+e\s+s\s*-\s*B\s+e\s+n\s+z\s+T\s*[üu]\s*r\s*k/gi, 'Company Name');
+    // Keep institution names unchanged to preserve data integrity
     
     // Detect different types of content
     const isHeader = /^[A-Z\s&]{3,}$/.test(line.trim()) && !line.includes('@');

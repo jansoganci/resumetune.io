@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, Mail, Phone, MapPin, Linkedin, Globe, Briefcase, Edit3, Save, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export interface ContactInfo {
   fullName: string;
@@ -32,6 +33,7 @@ export const ContactInfoInput: React.FC<ContactInfoInputProps> = ({
   onContactInfoSave,
   onClear
 }) => {
+  const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<ContactInfo>(contactInfo || defaultContactInfo);
   const [errors, setErrors] = useState<string[]>([]);
@@ -62,33 +64,33 @@ export const ContactInfoInput: React.FC<ContactInfoInputProps> = ({
     const validationErrors: string[] = [];
 
     if (!data.fullName || data.fullName.length < 2) {
-      validationErrors.push('Full name is required and must be at least 2 characters');
+      validationErrors.push(t('contact.errors.fullName'));
     }
 
     if (!data.email) {
-      validationErrors.push('Email address is required');
+      validationErrors.push(t('contact.errors.emailRequired'));
     } else {
       const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
       if (!emailRegex.test(data.email)) {
-        validationErrors.push('Please enter a valid email address');
+        validationErrors.push(t('contact.errors.emailInvalid'));
       }
     }
 
     if (!data.location || data.location.length < 2) {
-      validationErrors.push('Current location is required');
+      validationErrors.push(t('contact.errors.location'));
     }
 
     if (!data.professionalTitle || data.professionalTitle.length < 2) {
-      validationErrors.push('Professional title is required');
+      validationErrors.push(t('contact.errors.professionalTitle'));
     }
 
     // Optional field validations
     if (data.linkedin && !data.linkedin.includes('linkedin.com')) {
-      validationErrors.push('LinkedIn URL should contain "linkedin.com"');
+      validationErrors.push(t('contact.errors.linkedin'));
     }
 
     if (data.portfolio && !data.portfolio.startsWith('http')) {
-      validationErrors.push('Portfolio website should start with "http://" or "https://"');
+      validationErrors.push(t('contact.errors.portfolio'));
     }
 
     return validationErrors;
@@ -108,7 +110,7 @@ export const ContactInfoInput: React.FC<ContactInfoInputProps> = ({
     };
     
     // Debug: Log the contact info being saved
-    console.log('ContactInfoInput - Saving contact info:', trimmedData);
+    if (import.meta.env.DEV) console.log('ContactInfoInput - Saving contact info:', trimmedData);
     
     const validationErrors = validateContactInfo(trimmedData);
     
@@ -140,7 +142,7 @@ export const ContactInfoInput: React.FC<ContactInfoInputProps> = ({
       <div className="flex items-center justify-between">
         <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
           <User className="w-4 h-4" />
-          <span>Contact Information</span>
+          <span>{t('contact.label')}</span>
         </label>
         {contactInfo && !isEditing && (
           <div className="flex items-center space-x-2">
@@ -148,7 +150,7 @@ export const ContactInfoInput: React.FC<ContactInfoInputProps> = ({
               <button
                 onClick={onClear}
                 className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-                title="Clear contact information"
+                title={t('contact.clearTitle')}
               >
                 <X className="w-4 h-4" />
               </button>
@@ -156,7 +158,7 @@ export const ContactInfoInput: React.FC<ContactInfoInputProps> = ({
             <button
               onClick={handleEdit}
               className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-              title="Edit contact information"
+              title={t('contact.editTitle')}
             >
               <Edit3 className="w-4 h-4" />
             </button>
@@ -171,13 +173,13 @@ export const ContactInfoInput: React.FC<ContactInfoInputProps> = ({
             <div className="space-y-2">
               <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
                 <User className="w-4 h-4" />
-                <span>Full Name *</span>
+                <span>{t('contact.fullName')} *</span>
               </label>
               <input
                 type="text"
                 value={editData.fullName}
                 onChange={(e) => handleFieldChange('fullName', e.target.value)}
-                placeholder="Your Full Name"
+                placeholder={t('contact.fullName')}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
@@ -186,7 +188,7 @@ export const ContactInfoInput: React.FC<ContactInfoInputProps> = ({
             <div className="space-y-2">
               <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
                 <Mail className="w-4 h-4" />
-                <span>Email Address *</span>
+                <span>{t('contact.email')} *</span>
               </label>
               <input
                 type="email"
@@ -201,8 +203,8 @@ export const ContactInfoInput: React.FC<ContactInfoInputProps> = ({
             <div className="space-y-2">
               <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
                 <Phone className="w-4 h-4" />
-                <span>Phone Number</span>
-                <span className="text-xs text-gray-500">(Optional)</span>
+                <span>{t('contact.phone')}</span>
+                <span className="text-xs text-gray-500">{t('contact.optional')}</span>
               </label>
               <input
                 type="tel"
@@ -217,13 +219,13 @@ export const ContactInfoInput: React.FC<ContactInfoInputProps> = ({
             <div className="space-y-2">
               <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
                 <MapPin className="w-4 h-4" />
-                <span>Current Location *</span>
+                <span>{t('contact.location')} *</span>
               </label>
               <input
                 type="text"
                 value={editData.location}
                 onChange={(e) => handleFieldChange('location', e.target.value)}
-                placeholder="Your City, Your Country"
+                placeholder={t('contact.location')}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
@@ -232,13 +234,13 @@ export const ContactInfoInput: React.FC<ContactInfoInputProps> = ({
             <div className="space-y-2">
               <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
                 <Briefcase className="w-4 h-4" />
-                <span>Professional Title *</span>
+                <span>{t('contact.title')} *</span>
               </label>
               <input
                 type="text"
                 value={editData.professionalTitle}
                 onChange={(e) => handleFieldChange('professionalTitle', e.target.value)}
-                placeholder="Your Professional Title"
+                placeholder={t('contact.title')}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
@@ -247,8 +249,8 @@ export const ContactInfoInput: React.FC<ContactInfoInputProps> = ({
             <div className="space-y-2">
               <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
                 <Linkedin className="w-4 h-4" />
-                <span>LinkedIn Profile</span>
-                <span className="text-xs text-gray-500">(Optional)</span>
+                <span>{t('contact.linkedin')}</span>
+                <span className="text-xs text-gray-500">{t('contact.optional')}</span>
               </label>
               <input
                 type="url"
@@ -264,8 +266,8 @@ export const ContactInfoInput: React.FC<ContactInfoInputProps> = ({
           <div className="space-y-2">
             <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
               <Globe className="w-4 h-4" />
-              <span>Portfolio Website</span>
-              <span className="text-xs text-gray-500">(Optional)</span>
+                <span>{t('contact.portfolio')}</span>
+                <span className="text-xs text-gray-500">{t('contact.optional')}</span>
             </label>
             <input
               type="url"
@@ -280,7 +282,7 @@ export const ContactInfoInput: React.FC<ContactInfoInputProps> = ({
           {errors.length > 0 && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
               <div className="text-sm text-red-800">
-                <p className="font-medium mb-1">Please fix the following:</p>
+                <p className="font-medium mb-1">{t('contact.errors.fixFollowing')}</p>
                 <ul className="list-disc list-inside space-y-1">
                   {errors.map((error, index) => (
                     <li key={index}>{error}</li>
@@ -292,9 +294,7 @@ export const ContactInfoInput: React.FC<ContactInfoInputProps> = ({
 
           {/* Action Buttons */}
           <div className="flex items-center justify-between pt-2">
-            <p className="text-xs text-gray-500">
-              * Required fields
-            </p>
+            <p className="text-xs text-gray-500">{t('contact.requiredFields')}</p>
             <div className="flex space-x-2">
               {contactInfo && (
                 <button
@@ -309,7 +309,7 @@ export const ContactInfoInput: React.FC<ContactInfoInputProps> = ({
                 className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center space-x-1"
               >
                 <Save className="w-3 h-3" />
-                <span>Save Contact Info</span>
+                <span>{t('contact.save')}</span>
               </button>
             </div>
           </div>
@@ -356,10 +356,8 @@ export const ContactInfoInput: React.FC<ContactInfoInputProps> = ({
       ) : (
         <div className="p-4 border-2 border-dashed border-gray-300 rounded-lg text-center">
           <User className="w-6 h-6 text-gray-400 mx-auto mb-2" />
-          <p className="text-gray-600 text-sm mb-2">Add your contact information</p>
-          <p className="text-xs text-gray-500">
-            Required for generating professional cover letters
-          </p>
+          <p className="text-gray-600 text-sm mb-2">{t('contact.label')}</p>
+          <p className="text-xs text-gray-500">{t('contact.requiredFields')}</p>
         </div>
       )}
     </div>
