@@ -183,6 +183,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 - **Prod Backend**: Vercel function `api/ai/proxy.js` + Upstash Redis ile kalıcı rate limit. Env: `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `RATE_LIMIT_PER_MIN`.
 
 ### D) Sentry (opsiyonel) — [DONE]
+### E) İş Modeli ve Pazar Stratejisi — [NEW]
+- **Hedef Pazar Önceliği**: US → Asya → Orta Doğu → EU → Türkiye.
+- **Model**: Hybrid (3 free/day + credits + monthly). Başlangıç fiyatları: Credits 50/$5, 200/$15; Subscription $12 (100 runs) / $19 (300 runs). A/B ile optimize edilecek.
+- **Primary Conversion (Ads/GA4)**: `generate_cover_letter`.
+- **Free-limit Uygulaması (MVP)**: localStorage + IP‑bazlı soft kontrol; prod’da Upstash’la kuvvetlendirilecek.
+- **Remarketing**: EEA için Consent Mode v2 aktif olmadan kişiselleştirilmiş reklamlar kapalı.
+
+### F) Landing & SEO — [NEW]
+- **Landing**: Statik / (EN) — app `/app` altında kalır. IA: Paste Job + Paste CV + CTA; trust/örnekler; footer’da Pricing/Privacy/Terms/Imprint.
+- **SEO (SSR’siz)**: JSON‑LD (FAQ/HowTo), canonical/OG, robots.txt + sitemap.xml, CWV hızlı kazanımlar.
+- **CMP/Consent Mode v2**: Banner + GA4 consent güncellemeleri (MVP). Google‑certified CMP değerlendirmesi Sprint 2.
+
+### G) Ödeme (Stripe) — [Backlog]
+- **Kapsam**: Credit packs + subscription; SCA (Payment Intents) + webhooks; Stripe Tax. Kullanım defteri Redis üzerinde.
+
+### H) Reklam Yerleşimi (AdSense) — [NEW]
+- **Durum**: Başvuru ve onay sonrası etkinleştirilecek. Script placeholder index.html’a eklendi.
+- **CSP**: AdSense için script-src/connect-src/img-src/frame-src alanları genişletildi.
+- **Gizlilik**: Privacy Policy’e AdSense notu eklendi; Consent Mode v2 ile uyumlu banner hazır.
+
+## Sprint Planı (Revize)
+
+### Sprint 1 (Ads‑ready, 5–7 gün)
+- Statik landing (EN) + yasal sayfalar (privacy/terms/imprint)
+- GA4 event’ler ve primary conversion: `generate_cover_letter`
+- Consent Mode v2 banner (MVP) & legal linkler
+- Upstash prod rate‑limit env’leri ve gövde boyutu sınırları
+- Prod header’lar (vercel.json CSP/Referrer/Permissions)
+
+### Sprint 2 (Monetization & Scale, 7–10 gün)
+- Stripe (credits + monthly) + webhooks + Stripe Tax
+- Persistent Redis usage ledger + basit admin görünümü
+- Opsiyonel SSR/prerender marketing sayfaları; locale genişleme (ES/DE)
+- Kampanya genişletme (US → APAC → MENA → EU → TR), PMax testi, remarketing (CMP sonrası)
 - **Frontend**: `@sentry/react` eklendi, `src/utils/monitoring.ts` üzerinden init (DSN=`VITE_SENTRY_DSN`). `reportError()` → Sentry’ye de iletir. CSP `connect-src` Sentry ingest için genişletildi.
 
 ---
