@@ -49,12 +49,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // Check for required environment variables
-  if (!process.env.STRIPE_WEBHOOK_SECRET) {
-    return res.status(501).json({ error: { code: 'WEBHOOK_NOT_CONFIGURED', message: 'Stripe webhook not configured' } });
-  }
+  const requiredEnvVars = {
+    STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
+    STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY
+  };
 
-  if (!process.env.STRIPE_SECRET_KEY) {
-    return res.status(501).json({ error: { code: 'STRIPE_NOT_CONFIGURED', message: 'Stripe not configured' } });
+  const missingVars = Object.entries(requiredEnvVars)
+    .filter(([key, value]) => !value)
+    .map(([key]) => key);
+
+  if (missingVars.length > 0) {
+    console.error('Missing required environment variables:', missingVars);
+    return res.status(501).json({ 
+      error: { 
+        code: 'CONFIGURATION_ERROR', 
+        message: `Missing environment variables: ${missingVars.join(', ')}` 
+      } 
+    });
   }
 
   try {
@@ -64,17 +77,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       rawBody = Buffer.concat([rawBody, chunk]);
     }
 
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
     // Verify webhook signature
     const signature = req.headers['stripe-signature'] as string;
+    if (!signature) {
+      console.error('Missing Stripe signature header');
+      return res.status(400).json({ error: { code: 'MISSING_SIGNATURE', message: 'Missing signature' } });
+    }
+
     let event: Stripe.Event;
 
     try {
       event = stripe.webhooks.constructEvent(
         rawBody,
         signature,
-        process.env.STRIPE_WEBHOOK_SECRET
+        process.env.STRIPE_WEBHOOK_SECRET!
       );
     } catch (err) {
       console.error('Webhook signature verification failed:', err);
@@ -82,12 +100,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Handle the event
+    console.log(`Processing webhook event: ${event.type} (ID: ${event.id})`);
+    
     switch (event.type) {
       case 'checkout.session.completed':
         try {
-          await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
+          const session = event.data.object as Stripe.Checkout.Session;
+          console.log(`Checkout session details:`, {
+            sessionId: session.id,
+            mode: session.mode,
+            paymentStatus: session.payment_status,
+            customerEmail: session.customer_email,
+            metadata: session.metadata
+          });
+          
+          await handleCheckoutCompleted(session);
         } catch (error) {
           console.error(`Failed to handle checkout.session.completed for ${event.id}:`, error);
+          console.error('Error stack:', error.stack);
           return res.status(500).json({ error: { code: 'CHECKOUT_PROCESSING_FAILED', message: 'Failed to process checkout' } });
         }
         break;
@@ -155,8 +185,12 @@ async function generateAndSendInvoice(invoiceData: InvoiceData) {
 }
 
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
+  console.log(`Starting checkout processing for session: ${session.id}`);
+  console.log(`Session metadata:`, JSON.stringify(session.metadata, null, 2));
+  
   const userId = session.metadata?.userId;
   const userEmail = session.metadata?.userEmail;
+  const plan = session.metadata?.plan;
   
   if (!userId) {
     console.error('No userId in session metadata:', session.id);
@@ -187,9 +221,25 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   await redis.setex(idempotencyKey, 3600, 'processing'); // 1 hour TTL
 
   try {
+    // Get Stripe client to retrieve line items
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+    
+    // CRITICAL FIX: Retrieve line items from Stripe API
+    let lineItems;
+    try {
+      const lineItemsResponse = await stripe.checkout.sessions.listLineItems(session.id, {
+        limit: 100,
+      });
+      lineItems = lineItemsResponse.data;
+      console.log(`Retrieved ${lineItems.length} line items for session ${session.id}`);
+    } catch (lineItemError) {
+      console.error('Failed to retrieve line items:', lineItemError);
+      throw new Error(`Failed to retrieve line items: ${lineItemError.message}`);
+    }
+
     if (session.mode === 'payment') {
       // Handle one-time payment for credits
-      const lineItems = session.line_items?.data || [];
+      console.log(`Processing payment mode for ${lineItems.length} line items`);
       for (const item of lineItems) {
         const priceId = item.price?.id;
         let creditsToAdd = 0;
@@ -208,6 +258,8 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         }
 
         if (creditsToAdd > 0) {
+          console.log(`Processing ${creditsToAdd} credits for price ID: ${priceId}`);
+          
           // Dual storage: Update both Supabase (authoritative) and Redis (cache)
           try {
             // 1. Record transaction in Supabase for audit trail
@@ -221,16 +273,21 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
               currency: session.currency || 'usd',
               plan_name: `${creditsToAdd} Credits`
             };
+            
+            console.log(`Recording transaction:`, JSON.stringify(transaction, null, 2));
             await recordCreditTransaction(transaction);
             
             // 2. Update user's total credits in Supabase
+            console.log(`Updating user ${userId} credits by ${creditsToAdd}`);
             const newBalance = await updateUserCredits(userId, creditsToAdd);
+            console.log(`New balance after update: ${newBalance}`);
             
             // 3. Update Redis cache for fast access
             const key = `credits:${userId}`;
             await redis.set(key, newBalance); // Set absolute value, not increment
+            console.log(`Updated Redis cache for user ${userId} with balance: ${newBalance}`);
             
-            console.log(`Added ${creditsToAdd} credits to user ${userId}. New balance: ${newBalance}`);
+            console.log(`✅ Successfully added ${creditsToAdd} credits to user ${userId}. New balance: ${newBalance}`);
             
             // Generate and send invoice for credit purchase
             const invoiceData: InvoiceData = {
@@ -245,19 +302,37 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
               stripeInvoiceId: session.id
             };
             
-            await generateAndSendInvoice(invoiceData);
+            try {
+              await generateAndSendInvoice(invoiceData);
+              console.log(`✅ Invoice sent successfully for user ${userId}`);
+            } catch (invoiceError) {
+              console.error(`⚠️  Failed to send invoice (non-critical):`, invoiceError);
+              // Continue processing - invoice failure shouldn't block credit delivery
+            }
           } catch (dbError) {
-            console.error('Database operation failed, falling back to Redis only:', dbError);
+            console.error('❌ Database operation failed, falling back to Redis only:', dbError);
+            console.error('Database error details:', {
+              message: dbError.message,
+              stack: dbError.stack
+            });
+            
             // Fallback: At least update Redis
-            const key = `credits:${userId}`;
-            await redis.incrby(key, creditsToAdd);
-            console.log(`Fallback: Added ${creditsToAdd} credits to Redis for user ${userId}`);
+            try {
+              const key = `credits:${userId}`;
+              await redis.incrby(key, creditsToAdd);
+              console.log(`⚠️  Fallback: Added ${creditsToAdd} credits to Redis for user ${userId}`);
+            } catch (redisError) {
+              console.error('❌ Redis fallback also failed:', redisError);
+              throw new Error(`Both database and Redis failed: ${dbError.message} | ${redisError.message}`);
+            }
           }
+        } else {
+          console.warn(`⚠️  No credits to add for price ID: ${priceId}`);
         }
       }
     } else if (session.mode === 'subscription') {
       // Handle subscription
-      const lineItems = session.line_items?.data || [];
+      console.log(`Processing subscription mode for ${lineItems.length} line items`);
       for (const item of lineItems) {
         const priceId = item.price?.id;
         let subscriptionPlan: string | null = null;
