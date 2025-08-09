@@ -243,21 +243,28 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   const redis = await getRedis();
   if (!redis) {
-    console.error('Redis not available for webhook processing');
-    throw new Error('Redis unavailable');
+    console.error('⚠️  Redis not available for webhook processing - continuing without cache');
+    // Don't throw error, continue without Redis
   }
 
-  // Implement idempotency protection
+  // Implement idempotency protection (if Redis available)
+  let alreadyProcessed = false;
   const idempotencyKey = `processed:${session.id}`;
-  const alreadyProcessed = await redis.get(idempotencyKey);
   
-  if (alreadyProcessed) {
-    console.log(`Session ${session.id} already processed, skipping`);
-    return;
+  if (redis) {
+    try {
+      alreadyProcessed = await redis.get(idempotencyKey);
+      if (alreadyProcessed) {
+        console.log(`Session ${session.id} already processed, skipping`);
+        return;
+      }
+      // Mark as processing to prevent race conditions
+      await redis.setex(idempotencyKey, 3600, 'processing'); // 1 hour TTL
+    } catch (redisError) {
+      console.error('⚠️  Redis idempotency check failed, continuing:', redisError);
+      // Continue without idempotency protection
+    }
   }
-
-  // Mark as processing to prevent race conditions
-  await redis.setex(idempotencyKey, 3600, 'processing'); // 1 hour TTL
 
   try {
     // Get Stripe client to retrieve line items
@@ -438,7 +445,16 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
               stripeInvoiceId: session.id
             };
             
-            await generateAndSendInvoice(invoiceData);
+            // Generate and send invoice in background (non-blocking)
+            setImmediate(async () => {
+              try {
+                await generateAndSendInvoice(invoiceData);
+                console.log(`✅ Subscription invoice sent successfully for user ${userId}`);
+              } catch (invoiceError) {
+                console.error(`⚠️  Failed to send subscription invoice (non-critical):`, invoiceError);
+                // Log error but don't fail the webhook
+              }
+            });
           } catch (dbError) {
             console.error('Database operation failed, falling back to Redis only:', dbError);
             // Fallback: At least update Redis
