@@ -253,7 +253,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   
   if (redis) {
     try {
-      alreadyProcessed = await redis.get(idempotencyKey);
+      alreadyProcessed = !!(await redis.get(idempotencyKey));
       if (alreadyProcessed) {
         console.log(`Session ${session.id} already processed, skipping`);
         return;
@@ -328,10 +328,12 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
             const newBalance = await updateUserCredits(userId, creditsToAdd);
             console.log(`New balance after update: ${newBalance}`);
             
-            // 3. Update Redis cache for fast access
-            const key = `credits:${userId}`;
-            await redis.set(key, newBalance); // Set absolute value, not increment
-            console.log(`Updated Redis cache for user ${userId} with balance: ${newBalance}`);
+            // 3. Update Redis cache for fast access (if available)
+            if (redis) {
+              const key = `credits:${userId}`;
+              await redis.set(key, newBalance); // Set absolute value, not increment
+              console.log(`Updated Redis cache for user ${userId} with balance: ${newBalance}`);
+            }
             
             console.log(`✅ Successfully added ${creditsToAdd} credits to user ${userId}. New balance: ${newBalance}`);
             
@@ -365,14 +367,19 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
               stack: dbError.stack
             });
             
-            // Fallback: At least update Redis
-            try {
-              const key = `credits:${userId}`;
-              await redis.incrby(key, creditsToAdd);
-              console.log(`⚠️  Fallback: Added ${creditsToAdd} credits to Redis for user ${userId}`);
-            } catch (redisError) {
-              console.error('❌ Redis fallback also failed:', redisError);
-              throw new Error(`Both database and Redis failed: ${dbError.message} | ${redisError.message}`);
+            // Fallback: At least update Redis (if available)
+            if (redis) {
+              try {
+                const key = `credits:${userId}`;
+                await redis.incrby(key, creditsToAdd);
+                console.log(`⚠️  Fallback: Added ${creditsToAdd} credits to Redis for user ${userId}`);
+              } catch (redisError) {
+                console.error('❌ Redis fallback also failed:', redisError);
+                throw new Error(`Both database and Redis failed: ${dbError.message} | ${redisError.message}`);
+              }
+            } else {
+              console.error('❌ Both database and Redis unavailable - credits not updated');
+              throw new Error(`Database failed and Redis unavailable: ${dbError.message}`);
             }
           }
         } else {
@@ -421,13 +428,15 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
             // 3. Update user's total credits in Supabase
             const newBalance = await updateUserCredits(userId, initialCredits);
             
-            // 4. Update Redis cache
-            const creditsKey = `credits:${userId}`;
-            const subKey = `sub:${userId}`;
-            await Promise.all([
-              redis.set(creditsKey, newBalance),
-              redis.set(subKey, subscriptionPlan)
-            ]);
+            // 4. Update Redis cache (if available)
+            if (redis) {
+              const creditsKey = `credits:${userId}`;
+              const subKey = `sub:${userId}`;
+              await Promise.all([
+                redis.set(creditsKey, newBalance),
+                redis.set(subKey, subscriptionPlan)
+              ]);
+            }
             
             console.log(`Set subscription ${subscriptionPlan} and added ${initialCredits} credits for user ${userId}. New balance: ${newBalance}`);
             
@@ -457,27 +466,41 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
             });
           } catch (dbError) {
             console.error('Database operation failed, falling back to Redis only:', dbError);
-            // Fallback: At least update Redis
-            const creditsKey = `credits:${userId}`;
-            const subKey = `sub:${userId}`;
-            await Promise.all([
-              redis.incrby(creditsKey, 300),
-              redis.set(subKey, subscriptionPlan)
-            ]);
+            // Fallback: At least update Redis (if available)
+            if (redis) {
+              const creditsKey = `credits:${userId}`;
+              const subKey = `sub:${userId}`;
+              await Promise.all([
+                redis.incrby(creditsKey, 300),
+                redis.set(subKey, subscriptionPlan)
+              ]);
+            }
             console.log(`Fallback: Set subscription ${subscriptionPlan} in Redis for user ${userId}`);
           }
         }
       }
     }
 
-    // Mark as successfully processed
-    await redis.setex(idempotencyKey, 86400, 'completed'); // 24 hour TTL
+    // Mark as successfully processed (if Redis available)
+    if (redis) {
+      try {
+        await redis.setex(idempotencyKey, 86400, 'completed'); // 24 hour TTL
+      } catch (redisError) {
+        console.error('⚠️  Failed to mark session as completed in Redis:', redisError);
+      }
+    }
     console.log(`Successfully processed session ${session.id} for user ${userId}`);
     
   } catch (error) {
     console.error('Error processing webhook for session:', session.id, error);
-    // Remove processing marker so it can be retried
-    await redis.del(idempotencyKey);
+    // Remove processing marker so it can be retried (if Redis available)
+    if (redis) {
+      try {
+        await redis.del(idempotencyKey);
+      } catch (redisError) {
+        console.error('⚠️  Failed to remove processing marker from Redis:', redisError);
+      }
+    }
     throw error; // Re-throw to ensure webhook returns 500 status
   }
 }
