@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pricing | ResumeTune</title>
+    <meta name="description" content="Pricing for ResumeTune: Free plan, pay‑as‑you‑go credits, and subscriptions. Payments coming soon (test mode)." />
+    <link rel="canonical" href="https://resumetune.io/pricing.html" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Pricing | ResumeTune" />
+    <meta property="og:description" content="Free 3 runs/day, credits (50/$5, 200/$15), subscriptions ($12/100, $19/300)." />
+    <meta property="og:url" content="https://resumetune.io/pricing.html" />
+    <meta property="og:image" content="https://resumetune.io/og-image.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Pricing | ResumeTune" />
+    <meta name="twitter:description" content="Free 3/day, credits, subscriptions. Payments coming soon (test mode)." />
+    <meta name="twitter:image" content="https://resumetune.io/og-image.png" />
+    <link rel="stylesheet" href="/src/styles/global.css" />
+    <style>
+      /* Fallback tokens for static page if global.css is not available */
+      :root {
+        --color-bg: #f9fafb;
+        --color-surface: #ffffff;
+        --color-text-primary: #111827;
+        --color-text-secondary: #4b5563;
+        --color-brand: #2563eb;
+        --color-brand-hover: #1d4ed8;
+        --color-border: #e5e7eb;
+        --radius-lg: 8px;
+        --space-3: 12px;
+        --space-4: 16px;
+        --space-6: 24px;
+        --space-8: 32px;
+        --shadow-sm: 0 1px 2px 0 rgba(0,0,0,0.05);
+        --container-7xl: 80rem;
+        --container-4xl: 56rem;
+        --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Inter, Helvetica, Arial, 'Noto Sans';
+        --text-sm: 0.875rem;
+        --text-xl: 1.25rem;
+        --text-2xl: 1.5rem;
+        --font-weight-semibold: 600;
+        --font-weight-bold: 700;
+      }
+      html, body { margin: 0; padding: 0; background: var(--color-bg); color: var(--color-text-primary); font-family: var(--font-sans); }
+      a { color: inherit; text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      .container { max-width: var(--container-7xl); margin: 0 auto; padding: 0 var(--space-4); }
+      .header { background: var(--color-surface); border-bottom: 1px solid var(--color-border); box-shadow: var(--shadow-sm); }
+      .header-inner { display: flex; align-items: center; justify-content: space-between; padding: var(--space-4); }
+      .title { font-size: var(--text-xl); font-weight: var(--font-weight-bold); }
+      .subtitle { color: var(--color-text-secondary); margin-top: 4px; }
+      .main { padding: var(--space-8) var(--space-4); }
+      .grid { display: grid; grid-template-columns: repeat(1, minmax(0, 1fr)); gap: var(--space-6); }
+      @media (min-width: 768px) { .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+      .card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding: var(--space-6); }
+      .card h2 { font-size: var(--text-xl); font-weight: var(--font-weight-bold); margin: 0 0 var(--space-3); }
+      .price { font-size: var(--text-2xl); font-weight: var(--font-weight-bold); margin: var(--space-3) 0; }
+      .features { color: var(--color-text-secondary); margin: 0 0 var(--space-6); padding-left: 1rem; }
+      .btn { display: inline-block; background: var(--color-brand); color: #fff; border: none; border-radius: var(--radius-lg); padding: 10px 16px; font-weight: var(--font-weight-semibold); cursor: not-allowed; opacity: 0.7; }
+      .btn:hover { background: var(--color-brand-hover); }
+      .note { margin-top: var(--space-3); color: var(--color-text-secondary); font-size: var(--text-sm); }
+      .footer { padding: var(--space-8) 0; color: var(--color-text-secondary); border-top: 1px solid var(--color-border); }
+      .footer a { margin-right: var(--space-4); }
+    </style>
+  </head>
+  <body>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      window.dataLayer.push({ event: 'pricing_view' });
+    </script>
+    <header class="header">
+      <div class="header-inner container">
+        <div>
+          <div class="title">ResumeTune</div>
+          <div class="subtitle">Simple pricing — pay only when you need.</div>
+        </div>
+        <nav>
+          <a href="/">Home</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="main container" style="max-width: var(--container-4xl)">
+      <div class="grid">
+        <section class="card">
+          <h2>Free</h2>
+          <p class="price">$0</p>
+          <ul class="features">
+            <li>3 runs/day included</li>
+          </ul>
+          <button class="btn" disabled>Included</button>
+          <div class="note">Payments coming soon (test mode)</div>
+        </section>
+
+        <section class="card">
+          <h2>Credits</h2>
+          <p class="price">50 / $5</p>
+          <ul class="features">
+            <li>Pay as you go</li>
+          </ul>
+          <button class="btn" data-plan="credits_50">Buy 50 Credits</button>
+          <div class="note">Test mode - no real charges</div>
+          <hr style="margin: var(--space-6) 0; border: 0; border-top: 1px solid #e5e7eb;">
+          <p class="price">200 / $15</p>
+          <ul class="features">
+            <li>Lower unit price</li>
+          </ul>
+          <button class="btn" data-plan="credits_200">Buy 200 Credits</button>
+        </section>
+
+        <section class="card">
+          <h2>Subscriptions</h2>
+          <p class="price">$12 / 100 runs</p>
+          <ul class="features">
+            <li>Best for frequent use</li>
+          </ul>
+          <button class="btn" data-plan="sub_100">Subscribe $12/month</button>
+          <div class="note">Test mode - no real charges</div>
+          <hr style="margin: var(--space-6) 0; border: 0; border-top: 1px solid #e5e7eb;">
+          <p class="price">$19 / 300 runs</p>
+          <ul class="features">
+            <li>Save more with higher usage</li>
+          </ul>
+          <button class="btn" data-plan="sub_300">Subscribe $19/month</button>
+        </section>
+      </div>
+    </main>
+
+        <footer class="footer container" style="max-width: var(--container-4xl)">
+      <a href="/legal/privacy-policy.html">Privacy Policy</a>
+      <a href="/legal/terms-of-service.html">Terms of Service</a>
+      <a href="/legal/imprint.html">Imprint</a>
+    </footer>
+
+    <!-- Supabase Client -->
+    <script type="module">
+      import { createClient } from 'https://cdn.skypack.dev/@supabase/supabase-js';
+      
+      // Initialize Supabase client
+      // TODO: SECURITY FIX - Move this to React component to properly access env vars
+      // For now, disable payment buttons until we fix this properly
+      const supabaseUrl = null; // Don't hardcode credentials!
+      const supabaseAnonKey = null; // Don't hardcode credentials!
+      const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+      // Check authentication and handle plan selections
+      async function handlePlanSelection(plan) {
+        try {
+          // Track analytics
+          if (window.dataLayer) {
+            window.dataLayer.push({ event: 'select_plan', plan: plan });
+          }
+
+          // Check if user is authenticated
+          const { data: { session } } = await supabase.auth.getSession();
+          
+          if (!session?.user) {
+            // Redirect to login with return URL
+            window.location.href = `/login?next=${encodeURIComponent('/pricing.html')}`;
+            return;
+          }
+
+          // User is authenticated, proceed with checkout
+          const response = await fetch('/api/stripe/create-checkout-session', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-user-id': session.user.id,
+            },
+            body: JSON.stringify({ plan }),
+          });
+
+          if (!response.ok) {
+            const error = await response.json();
+            console.error('Checkout error:', error);
+            alert('Failed to start checkout. Please try again.');
+            return;
+          }
+
+          const { url } = await response.json();
+          if (url) {
+            // Redirect to Stripe Checkout
+            window.location.href = url;
+          } else {
+            alert('Failed to create checkout session. Please try again.');
+          }
+        } catch (error) {
+          console.error('Error handling plan selection:', error);
+          alert('An error occurred. Please try again.');
+        }
+      }
+
+      // Add click handlers to all plan buttons
+      document.addEventListener('DOMContentLoaded', function() {
+        const buttons = document.querySelectorAll('button[data-plan]');
+        buttons.forEach(button => {
+          button.addEventListener('click', function() {
+            const plan = this.getAttribute('data-plan');
+            handlePlanSelection(plan);
+          });
+        });
+      });
+    </script>
+  </body>
+</html>
+
+
+

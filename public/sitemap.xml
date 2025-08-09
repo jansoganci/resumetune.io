@@ -5,11 +5,39 @@
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://resumetune.io/privacy.html</loc>
+    <loc>https://resumetune.io/legal/privacy-policy.html</loc>
     <priority>0.4</priority>
   </url>
   <url>
-    <loc>https://resumetune.io/terms.html</loc>
+    <loc>https://resumetune.io/legal/terms-of-service.html</loc>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://resumetune.io/legal/imprint.html</loc>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://resumetune.io/pricing.html</loc>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://resumetune.io/content/cover-letter-for-software-engineer.html</loc>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://resumetune.io/content/cover-letter-for-product-manager.html</loc>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://resumetune.io/content/cover-letter-for-data-analyst.html</loc>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://resumetune.io/content/cover-letter-for-marketing-manager.html</loc>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://resumetune.io/content/cover-letter-for-graphic-designer.html</loc>
     <priority>0.4</priority>
   </url>
 </urlset>

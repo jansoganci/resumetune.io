@@ -170,12 +170,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 ## Ek (Ürünleşme) – Faz 2+ (Opsiyonel ve Hızlı)
 
 ### A) GA4 ve Dönüşüm Olayları — [DONE]
-- **Frontend**: `gtag` kuruldu (Measurement ID: `G-R2KKQRB75Z`); event’ler: `generate_cover_letter`, `optimize_resume`, `export_pdf`, `export_docx` çağrılıyor.
+- **Frontend**: GA4, GTM üzerinden yükleniyor (Measurement ID: `G-R2KKQRB75Z`). Event’ler: `generate_cover_letter`, `optimize_resume`, `export_pdf`, `export_docx`.
+- **Primary Conversion**: `generate_cover_letter` GA4’te primary olarak işaretlendi — [DONE]
+- **Google Ads Link**: GA4 ↔ Google Ads bağlantısı yapıldı — [DONE]
 
 ### B) Güvenlik Başlıkları / CSP (Statik) — [DONE]
 - **Frontend**: `index.html` içine statik CSP meta eklendi (GA4, pdfjs-dist, dev HMR için toleranslı); `Referrer-Policy`, `X-Content-Type-Options`, `X-Frame-Options`, `Permissions-Policy` eklendi.
 
 ### C) Rate Limit Kalıcı Katman — [DONE (MVP)]
+ - Admin kullanım görünümü: `GET /api/admin/usage?date=YYYY-MM-DD` — **[DONE]**
 - **Dev Backend**: `server/dev-api.js` için dakika başı limit etkin (varsayılan 20 req/dak, 429 döner). `RATE_LIMIT_PER_MIN` ile ayarlanabilir.
 - **Kabul kriterleri (MVP)**: Aşımda 429 ve tutarlı JSON hata: `{ error: { code: 'rate_limited', message: '...' } }`.
 
@@ -185,12 +188,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 ### D) Sentry (opsiyonel) — [DONE]
 ### E) İş Modeli ve Pazar Stratejisi — [NEW]
 - **Hedef Pazar Önceliği**: US → Asya → Orta Doğu → EU → Türkiye.
-- **Model**: Hybrid (3 free/day + credits + monthly). Başlangıç fiyatları: Credits 50/$5, 200/$15; Subscription $12 (100 runs) / $19 (300 runs). A/B ile optimize edilecek.
-- **Primary Conversion (Ads/GA4)**: `generate_cover_letter`.
+- **Model**: Hybrid (3 free/day + credits + monthly). Başlangıç fiyatları: Credits 50/$5, 200/$15; Subscription $12 (100 runs) / $19 (300 runs). A/B ile optimize edilecek — **[DONE/ONAYLANDI]**.
+- **Primary Conversion (Ads/GA4)**: `generate_cover_letter` — **[DONE]**.
 - **Free-limit Uygulaması (MVP)**: localStorage + IP‑bazlı soft kontrol; prod’da Upstash’la kuvvetlendirilecek.
 - **Remarketing**: EEA için Consent Mode v2 aktif olmadan kişiselleştirilmiş reklamlar kapalı.
 
-### F) Landing & SEO — [NEW]
+### F) Landing & SEO — [DONE]
+ - JSON‑LD (FAQ/HowTo/WebApplication), meta/OG/Twitter etiketleri, preconnect (GTM/GA), footer'a `/pricing` linki eklendi — **[DONE]**
 - **Landing**: Statik / (EN) — app `/app` altında kalır. IA: Paste Job + Paste CV + CTA; trust/örnekler; footer’da Pricing/Privacy/Terms/Imprint.
 - **SEO (SSR’siz)**: JSON‑LD (FAQ/HowTo), canonical/OG, robots.txt + sitemap.xml, CWV hızlı kazanımlar.
 - **CMP/Consent Mode v2**: Banner + GA4 consent güncellemeleri (MVP). Google‑certified CMP değerlendirmesi Sprint 2.
@@ -198,10 +202,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 ### G) Ödeme (Stripe) — [Backlog]
 - **Kapsam**: Credit packs + subscription; SCA (Payment Intents) + webhooks; Stripe Tax. Kullanım defteri Redis üzerinde.
 
-### H) Reklam Yerleşimi (AdSense) — [NEW]
+### H) Reklam Yerleşimi (AdSense) — [Backlog]
 - **Durum**: Başvuru ve onay sonrası etkinleştirilecek. Script placeholder index.html’a eklendi.
 - **CSP**: AdSense için script-src/connect-src/img-src/frame-src alanları genişletildi.
 - **Gizlilik**: Privacy Policy’e AdSense notu eklendi; Consent Mode v2 ile uyumlu banner hazır.
+
+### I) Google Ads Kampanyaları — [Backlog]
+- **Yapılacaklar**: Search kampanyası (ad groups: "cover letter generator", "ai cover letter", "ats resume optimizer"), küçük Brand kampanyası.
+- **Negatif Anahtar Kelimeler**: template, sample, HR/recruiter jobs vb.
+- **Hedef Olay**: Primary conversion `generate_cover_letter` (GA4’te işaretli).
+
+### J) Bütçe & Anahtar Kelimeler — [Backlog]
+- **Günlük Bütçe**: başlangıç aralığı $20–$50 (A/B’ye göre güncellenecek).
+- **Odak Anahtar Kelimeler**: en az 5 çekirdek keyword (örn. "ai cover letter generator", "ats resume optimizer").
 
 ## Sprint Planı (Revize)
 
@@ -212,10 +225,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 - Upstash prod rate‑limit env’leri ve gövde boyutu sınırları
 - Prod header’lar (vercel.json CSP/Referrer/Permissions)
 
+### Z) Dokümantasyon Hijyeni — [DONE]
+- `docs/plan.md` ve `README.md` sprint çıktılarıyla güncellendi; release checklist işaretlendi — **[DONE]**
+
 ### Sprint 2 (Monetization & Scale, 7–10 gün)
-- Stripe (credits + monthly) + webhooks + Stripe Tax
+- Stripe (Payment Intents + webhooks; credits + monthly) + Stripe Tax
 - Persistent Redis usage ledger + basit admin görünümü
-- Opsiyonel SSR/prerender marketing sayfaları; locale genişleme (ES/DE)
+- Opsiyonel SSR/prerender landing/marketing sayfaları; locale genişleme (ES/DE)
 - Kampanya genişletme (US → APAC → MENA → EU → TR), PMax testi, remarketing (CMP sonrası)
 - **Frontend**: `@sentry/react` eklendi, `src/utils/monitoring.ts` üzerinden init (DSN=`VITE_SENTRY_DSN`). `reportError()` → Sentry’ye de iletir. CSP `connect-src` Sentry ingest için genişletildi.
 

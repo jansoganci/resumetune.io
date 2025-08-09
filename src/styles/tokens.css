@@ -1,0 +1,72 @@
+/* Design Tokens */
+:root {
+  /* colors (derived from existing Tailwind usage in UI) */
+  --color-bg: #f9fafb; /* gray-50 */
+  --color-surface: #ffffff; /* white */
+  --color-text-primary: #111827; /* gray-900 */
+  --color-text-secondary: #4b5563; /* gray-600 */
+  --color-brand: #2563eb; /* blue-600 */
+  --color-brand-hover: #1d4ed8; /* blue-700 */
+  --color-brand-ink: #1e40af; /* blue-800 */
+  --color-info-50: #eff6ff; /* blue-50 */
+  --color-info-200: #bfdbfe; /* blue-200 */
+  --color-info-800: #1e40af; /* blue-800 */
+  --color-info-900: #1e3a8a; /* blue-900 */
+  --color-accent-amber-50: #fffbeb; /* amber-50 */
+  --color-accent-amber-200: #fde68a; /* amber-200 */
+  --color-accent-amber-800: #92400e; /* amber-800 */
+  --color-accent-amber-900: #78350f; /* amber-900 */
+  --color-success-50: #ecfdf5; /* green-50 */
+  --color-success-200: #a7f3d0; /* green-200 */
+  --color-success-600: #16a34a; /* green-600 */
+  --color-success-700: #15803d; /* green-700 */
+  --color-success-800: #166534; /* green-800 */
+  --color-danger-50: #fef2f2; /* red-50 */
+  --color-danger-200: #fecaca; /* red-200 */
+  --color-danger-600: #dc2626; /* red-600 */
+  --color-danger-700: #b91c1c; /* red-700 */
+  --color-danger-800: #991b1b; /* red-800 */
+  --color-border: #e5e7eb; /* gray-200 */
+  --color-border-strong: #d1d5db; /* gray-300 */
+
+  /* spacing (only scales observed in UI) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* radius (observed) */
+  --radius-sm: 4px;  /* rounded */
+  --radius-md: 6px;  /* rounded-md */
+  --radius-lg: 8px;  /* rounded-lg */
+
+  /* shadow (observed) */
+  --shadow-sm: 0 1px 2px 0 rgba(0,0,0,0.05);
+
+  /* container widths (observed) */
+  --container-4xl: 56rem; /* 896px */
+  --container-7xl: 80rem; /* 1280px */
+
+  /* typography (observed) */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Inter, Helvetica, Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
+  --text-sm: 0.875rem;  /* 14px */
+  --text-base: 1rem;     /* 16px */
+  --text-lg: 1.125rem;   /* 18px */
+  --text-xl: 1.25rem;    /* 20px */
+  --text-2xl: 1.5rem;    /* 24px */
+  --font-weight-regular: 400;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+}
+
+/* Dark Theme Overrides (same variable names, minimal overrides) */
+[data-theme="dark"] {
+  --color-bg: #0b1220;
+  --color-surface: #111827;
+  --color-text-primary: #f9fafb;
+  --color-text-secondary: #cbd5e1;
+  --color-border: #1f2937;
+  --color-border-strong: #374151;
+}

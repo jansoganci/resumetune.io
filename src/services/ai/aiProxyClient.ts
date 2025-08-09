@@ -3,6 +3,29 @@ export type AiHistoryItem = {
   parts: { text: string }[];
 };
 
+// Get user ID from Supabase session or generate anonymous ID
+async function getUserId(): Promise<string> {
+  try {
+    // Import supabase client dynamically to avoid circular dependency issues
+    const { supabase } = await import('../../config/supabase');
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (session?.user?.id) {
+      return session.user.id;
+    }
+  } catch (error) {
+    console.warn('Failed to get user from Supabase session:', error);
+  }
+  
+  // Fallback to anonymous ID stored in localStorage
+  let anonId = localStorage.getItem('anon-id');
+  if (!anonId) {
+    anonId = `anon_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+    localStorage.setItem('anon-id', anonId);
+  }
+  return anonId;
+}
+
 export async function sendAiMessage(
   history: AiHistoryItem[],
   message: string,
@@ -15,9 +38,15 @@ export async function sendAiMessage(
   }));
   const safeMessage = (message || '').slice(0, 4000);
 
+  // Get user ID for quota tracking
+  const userId = await getUserId();
+
   const response = await fetch('/api/ai/proxy', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 
+      'Content-Type': 'application/json',
+      'x-user-id': userId
+    },
     body: JSON.stringify({ history: safeHistory, message: safeMessage, model })
   });
 

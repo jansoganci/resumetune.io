@@ -2,7 +2,9 @@ export type AnalyticsEvent =
   | 'generate_cover_letter'
   | 'optimize_resume'
   | 'export_pdf'
-  | 'export_docx';
+  | 'export_docx'
+  | 'start_analysis'
+  | 'job_match_done';
 
 export function trackEvent(eventName: AnalyticsEvent, params?: Record<string, any>) {
   try {

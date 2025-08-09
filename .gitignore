@@ -94,3 +94,4 @@ temp/
 
 # Bolt specific
 .bolt/
+.vercel
