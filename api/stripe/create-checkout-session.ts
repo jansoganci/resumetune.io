@@ -73,7 +73,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         },
       ],
       success_url: `${req.headers.origin || 'https://resumetune.io'}/account?status=success`,
-      cancel_url: `${req.headers.origin || 'https://resumetune.io'}/pricing.html`,
+      cancel_url: `${req.headers.origin || 'https://resumetune.io'}/pricing`,
       metadata: {
         userId,
       },
