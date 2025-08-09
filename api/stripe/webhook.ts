@@ -3,6 +3,19 @@ import { VercelRequest, VercelResponse } from '@vercel/node';
 import { generateInvoiceHTML, generateInvoicePDF, sendInvoiceEmail } from '../../src/utils/invoice';
 import { InvoiceData } from '../../src/utils/invoice/types';
 import { recordCreditTransaction, updateUserCredits, updateUserSubscription, CreditTransaction } from './supabase-integration';
+import { createClient } from '@supabase/supabase-js';
+
+// Import Supabase client function for user validation
+function getSupabaseClient() {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error('Missing Supabase environment variables');
+  }
+  
+  return createClient(supabaseUrl, supabaseServiceKey);
+}
 
 // Redis client import
 async function getRedis() {
@@ -202,6 +215,32 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     throw new Error('Missing userEmail in session metadata');
   }
 
+  // CRITICAL FIX: Validate user exists and email matches
+  try {
+    const supabase = getSupabaseClient();
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id, email')
+      .eq('id', userId)
+      .single();
+      
+    if (userError || !user) {
+      console.error(`User ${userId} not found in database:`, userError);
+      throw new Error(`User not found: ${userId}`);
+    }
+    
+    // Validate email consistency
+    if (user.email !== userEmail) {
+      console.error(`Email mismatch for user ${userId}: DB=${user.email}, Stripe=${userEmail}`);
+      throw new Error(`Email mismatch for user ${userId}`);
+    }
+    
+    console.log(`✅ User validation passed for ${userId} (${userEmail})`);
+  } catch (validationError) {
+    console.error('User validation failed:', validationError);
+    throw validationError;
+  }
+
   const redis = await getRedis();
   if (!redis) {
     console.error('Redis not available for webhook processing');
@@ -302,13 +341,16 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
               stripeInvoiceId: session.id
             };
             
-            try {
-              await generateAndSendInvoice(invoiceData);
-              console.log(`✅ Invoice sent successfully for user ${userId}`);
-            } catch (invoiceError) {
-              console.error(`⚠️  Failed to send invoice (non-critical):`, invoiceError);
-              // Continue processing - invoice failure shouldn't block credit delivery
-            }
+            // Generate and send invoice in background (non-blocking)
+            setImmediate(async () => {
+              try {
+                await generateAndSendInvoice(invoiceData);
+                console.log(`✅ Invoice sent successfully for user ${userId}`);
+              } catch (invoiceError) {
+                console.error(`⚠️  Failed to send invoice (non-critical):`, invoiceError);
+                // Log error but don't fail the webhook
+              }
+            });
           } catch (dbError) {
             console.error('❌ Database operation failed, falling back to Redis only:', dbError);
             console.error('Database error details:', {
