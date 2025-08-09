@@ -44,7 +44,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: '2025-07-30.basil',
+      apiVersion: '2024-11-20.acacia',
     });
 
     // Parse and validate request body
