@@ -61,7 +61,7 @@ ${this.steps[0].question}`;
 
   async handleDataCollection(message: string): Promise<string> {
     const currentStepData = this.steps[this.currentStep];
-    this.resumeData[currentStepData.key] = message.trim();
+    (this.resumeData as any)[currentStepData.key] = message.trim();
     this.currentStep++;
 
     // If we have more steps, ask the next question

@@ -63,9 +63,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       rawBody = Buffer.concat([rawBody, chunk]);
     }
 
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: '2025-07-30.basil',
-    });
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
     // Verify webhook signature
     const signature = req.headers['stripe-signature'] as string;
