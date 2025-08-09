@@ -1,9 +1,4 @@
 {
-  "functions": {
-    "api/**/*.ts": {
-      "runtime": "@vercel/node"
-    }
-  },
   "redirects": [
     { "source": "/privacy.html", "destination": "/legal/privacy-policy.html", "permanent": true },
     { "source": "/terms.html", "destination": "/legal/terms-of-service.html", "permanent": true },
