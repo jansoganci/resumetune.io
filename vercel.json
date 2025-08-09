@@ -1,4 +1,10 @@
 {
+  "rewrites": [
+    {
+      "source": "/((?!api|_next|_static|favicon.ico|robots.txt|sitemap.xml|legal|content).*)",
+      "destination": "/index.html"
+    }
+  ],
   "redirects": [
     { "source": "/privacy.html", "destination": "/legal/privacy-policy.html", "permanent": true },
     { "source": "/terms.html", "destination": "/legal/terms-of-service.html", "permanent": true },
