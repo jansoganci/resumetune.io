@@ -35,6 +35,7 @@ export default function PricingPage() {
         headers: {
           'Content-Type': 'application/json',
           'x-user-id': session.user.id,
+          'x-user-email': session.user.email || '',
         },
         body: JSON.stringify({ plan }),
       });

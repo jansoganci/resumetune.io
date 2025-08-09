@@ -2,6 +2,7 @@ import Stripe from 'stripe';
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { generateInvoiceHTML, generateInvoicePDF, sendInvoiceEmail } from '../../src/utils/invoice';
 import { InvoiceData } from '../../src/utils/invoice/types';
+import { recordCreditTransaction, updateUserCredits, updateUserSubscription, CreditTransaction } from './supabase-integration';
 
 // Redis client import
 async function getRedis() {
@@ -83,13 +84,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Handle the event
     switch (event.type) {
       case 'checkout.session.completed':
-        await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
+        try {
+          await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
+        } catch (error) {
+          console.error(`Failed to handle checkout.session.completed for ${event.id}:`, error);
+          return res.status(500).json({ error: { code: 'CHECKOUT_PROCESSING_FAILED', message: 'Failed to process checkout' } });
+        }
         break;
       case 'invoice.payment_succeeded':
-        await handleInvoicePaymentSucceeded(event.data.object as Stripe.Invoice);
+        try {
+          await handleInvoicePaymentSucceeded(event.data.object as Stripe.Invoice);
+        } catch (error) {
+          console.error(`Failed to handle invoice.payment_succeeded for ${event.id}:`, error);
+          return res.status(500).json({ error: { code: 'INVOICE_PROCESSING_FAILED', message: 'Failed to process invoice' } });
+        }
         break;
       case 'customer.subscription.deleted':
-        await handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
+        try {
+          await handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
+        } catch (error) {
+          console.error(`Failed to handle customer.subscription.deleted for ${event.id}:`, error);
+          return res.status(500).json({ error: { code: 'SUBSCRIPTION_DELETE_FAILED', message: 'Failed to process subscription deletion' } });
+        }
         break;
       default:
         console.log(`Unhandled event type: ${event.type}`);
@@ -140,16 +156,35 @@ async function generateAndSendInvoice(invoiceData: InvoiceData) {
 
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const userId = session.metadata?.userId;
+  const userEmail = session.metadata?.userEmail;
+  
   if (!userId) {
-    console.error('No userId in session metadata');
-    return;
+    console.error('No userId in session metadata:', session.id);
+    throw new Error('Missing userId in session metadata');
+  }
+
+  if (!userEmail) {
+    console.error('No userEmail in session metadata:', session.id);
+    throw new Error('Missing userEmail in session metadata');
   }
 
   const redis = await getRedis();
   if (!redis) {
     console.error('Redis not available for webhook processing');
+    throw new Error('Redis unavailable');
+  }
+
+  // Implement idempotency protection
+  const idempotencyKey = `processed:${session.id}`;
+  const alreadyProcessed = await redis.get(idempotencyKey);
+  
+  if (alreadyProcessed) {
+    console.log(`Session ${session.id} already processed, skipping`);
     return;
   }
+
+  // Mark as processing to prevent race conditions
+  await redis.setex(idempotencyKey, 3600, 'processing'); // 1 hour TTL
 
   try {
     if (session.mode === 'payment') {
@@ -173,24 +208,51 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         }
 
         if (creditsToAdd > 0) {
-          const key = `credits:${userId}`;
-          await redis.incrby(key, creditsToAdd);
-          console.log(`Added ${creditsToAdd} credits to user ${userId}`);
-          
-          // Generate and send invoice for credit purchase
-          const invoiceData: InvoiceData = {
-            userId,
-            customerEmail: session.customer_email || session.customer_details?.email || 'unknown@example.com',
-            amount: session.amount_total || 0,
-            currency: session.currency || 'usd',
-            productName: `${creditsToAdd} Credits`,
-            creditsDelivered: creditsToAdd,
-            paymentDate: new Date(),
-            invoiceType: 'purchase',
-            stripeInvoiceId: session.id
-          };
-          
-          await generateAndSendInvoice(invoiceData);
+          // Dual storage: Update both Supabase (authoritative) and Redis (cache)
+          try {
+            // 1. Record transaction in Supabase for audit trail
+            const transaction: CreditTransaction = {
+              user_id: userId,
+              user_email: userEmail,
+              credits_added: creditsToAdd,
+              transaction_type: 'purchase',
+              stripe_session_id: session.id,
+              amount_paid: session.amount_total || 0,
+              currency: session.currency || 'usd',
+              plan_name: `${creditsToAdd} Credits`
+            };
+            await recordCreditTransaction(transaction);
+            
+            // 2. Update user's total credits in Supabase
+            const newBalance = await updateUserCredits(userId, creditsToAdd);
+            
+            // 3. Update Redis cache for fast access
+            const key = `credits:${userId}`;
+            await redis.set(key, newBalance); // Set absolute value, not increment
+            
+            console.log(`Added ${creditsToAdd} credits to user ${userId}. New balance: ${newBalance}`);
+            
+            // Generate and send invoice for credit purchase
+            const invoiceData: InvoiceData = {
+              userId,
+              customerEmail: userEmail, // Use metadata email for consistency
+              amount: session.amount_total || 0,
+              currency: session.currency || 'usd',
+              productName: `${creditsToAdd} Credits`,
+              creditsDelivered: creditsToAdd,
+              paymentDate: new Date(),
+              invoiceType: 'purchase',
+              stripeInvoiceId: session.id
+            };
+            
+            await generateAndSendInvoice(invoiceData);
+          } catch (dbError) {
+            console.error('Database operation failed, falling back to Redis only:', dbError);
+            // Fallback: At least update Redis
+            const key = `credits:${userId}`;
+            await redis.incrby(key, creditsToAdd);
+            console.log(`Fallback: Added ${creditsToAdd} credits to Redis for user ${userId}`);
+          }
         }
       }
     } else if (session.mode === 'subscription') {
@@ -214,34 +276,76 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         }
 
         if (subscriptionPlan) {
-          const key = `sub:${userId}`;
-          await redis.set(key, subscriptionPlan);
-          console.log(`Set subscription ${subscriptionPlan} for user ${userId}`);
-          
-          // TODO: Add monthly credit allocation for subscriptions
-          // Both sub_100 and sub_300 should get 300 credits per month
-          // This will be handled by a monthly cron job or subscription renewal webhook
-          
-          // Generate and send invoice for subscription purchase
-          const planName = subscriptionPlan === 'sub_100' ? 'Pro Monthly' : 'Pro Yearly';
-          const invoiceData: InvoiceData = {
-            userId,
-            customerEmail: session.customer_email || session.customer_details?.email || 'unknown@example.com',
-            amount: session.amount_total || 0,
-            currency: session.currency || 'usd',
-            productName: planName,
-            creditsDelivered: 300, // Both plans get 300 credits per month
-            paymentDate: new Date(),
-            invoiceType: 'purchase',
-            stripeInvoiceId: session.id
-          };
-          
-          await generateAndSendInvoice(invoiceData);
+          try {
+            // 1. Update subscription in Supabase
+            await updateUserSubscription(userId, subscriptionPlan);
+            
+            // 2. Add initial 300 credits for subscription
+            const initialCredits = 300;
+            const transaction: CreditTransaction = {
+              user_id: userId,
+              user_email: userEmail,
+              credits_added: initialCredits,
+              transaction_type: 'subscription_renewal',
+              stripe_session_id: session.id,
+              amount_paid: session.amount_total || 0,
+              currency: session.currency || 'usd',
+              plan_name: subscriptionPlan === 'sub_100' ? 'Pro Monthly' : 'Pro Yearly'
+            };
+            await recordCreditTransaction(transaction);
+            
+            // 3. Update user's total credits in Supabase
+            const newBalance = await updateUserCredits(userId, initialCredits);
+            
+            // 4. Update Redis cache
+            const creditsKey = `credits:${userId}`;
+            const subKey = `sub:${userId}`;
+            await Promise.all([
+              redis.set(creditsKey, newBalance),
+              redis.set(subKey, subscriptionPlan)
+            ]);
+            
+            console.log(`Set subscription ${subscriptionPlan} and added ${initialCredits} credits for user ${userId}. New balance: ${newBalance}`);
+            
+            // Generate and send invoice for subscription purchase
+            const planName = subscriptionPlan === 'sub_100' ? 'Pro Monthly' : 'Pro Yearly';
+            const invoiceData: InvoiceData = {
+              userId,
+              customerEmail: userEmail, // Use metadata email for consistency
+              amount: session.amount_total || 0,
+              currency: session.currency || 'usd',
+              productName: planName,
+              creditsDelivered: initialCredits,
+              paymentDate: new Date(),
+              invoiceType: 'purchase',
+              stripeInvoiceId: session.id
+            };
+            
+            await generateAndSendInvoice(invoiceData);
+          } catch (dbError) {
+            console.error('Database operation failed, falling back to Redis only:', dbError);
+            // Fallback: At least update Redis
+            const creditsKey = `credits:${userId}`;
+            const subKey = `sub:${userId}`;
+            await Promise.all([
+              redis.incrby(creditsKey, 300),
+              redis.set(subKey, subscriptionPlan)
+            ]);
+            console.log(`Fallback: Set subscription ${subscriptionPlan} in Redis for user ${userId}`);
+          }
         }
       }
     }
+
+    // Mark as successfully processed
+    await redis.setex(idempotencyKey, 86400, 'completed'); // 24 hour TTL
+    console.log(`Successfully processed session ${session.id} for user ${userId}`);
+    
   } catch (error) {
-    console.error('Error updating Redis in webhook:', error);
+    console.error('Error processing webhook for session:', session.id, error);
+    // Remove processing marker so it can be retried
+    await redis.del(idempotencyKey);
+    throw error; // Re-throw to ensure webhook returns 500 status
   }
 }
 
@@ -268,26 +372,54 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
   try {
     // Add 300 credits for subscription renewal
     const creditsToAdd = 300;
-    const key = `credits:${userId}`;
-    const newBalance = await redis.incrby(key, creditsToAdd);
-    console.log(`Added ${creditsToAdd} subscription credits to user ${userId}. New balance: ${newBalance}`);
     
-    // Generate and send invoice for subscription renewal
-    const invoiceData: InvoiceData = {
-      userId,
-      customerEmail: (invoice as any).customer_email || 'unknown@example.com',
-      amount: invoice.amount_paid || 0,
-      currency: invoice.currency || 'usd',
-      productName: 'Subscription Renewal',
-      creditsDelivered: creditsToAdd,
-      paymentDate: new Date(invoice.created * 1000), // Convert Unix timestamp
-      invoiceType: 'renewal',
-      stripeInvoiceId: invoice.id
-    };
-    
-    await generateAndSendInvoice(invoiceData);
+    try {
+      // 1. Record transaction in Supabase for audit trail
+      const transaction: CreditTransaction = {
+        user_id: userId,
+        user_email: (invoice as any).customer_email || 'unknown@example.com',
+        credits_added: creditsToAdd,
+        transaction_type: 'subscription_renewal',
+        stripe_session_id: invoice.id || `invoice_${Date.now()}`,
+        amount_paid: invoice.amount_paid || 0,
+        currency: invoice.currency || 'usd',
+        plan_name: 'Subscription Renewal'
+      };
+      await recordCreditTransaction(transaction);
+      
+      // 2. Update user's total credits in Supabase
+      const newBalance = await updateUserCredits(userId, creditsToAdd);
+      
+      // 3. Update Redis cache
+      const key = `credits:${userId}`;
+      await redis.set(key, newBalance); // Set absolute value
+      
+      console.log(`Added ${creditsToAdd} subscription credits to user ${userId}. New balance: ${newBalance}`);
+      
+      // Generate and send invoice for subscription renewal
+      const invoiceData: InvoiceData = {
+        userId,
+        customerEmail: (invoice as any).customer_email || 'unknown@example.com',
+        amount: invoice.amount_paid || 0,
+        currency: invoice.currency || 'usd',
+        productName: 'Subscription Renewal',
+        creditsDelivered: creditsToAdd,
+        paymentDate: new Date(invoice.created * 1000), // Convert Unix timestamp
+        invoiceType: 'renewal',
+        stripeInvoiceId: invoice.id
+      };
+      
+      await generateAndSendInvoice(invoiceData);
+    } catch (dbError) {
+      console.error('Database operation failed, falling back to Redis only:', dbError);
+      // Fallback: At least update Redis
+      const key = `credits:${userId}`;
+      const newBalance = await redis.incrby(key, creditsToAdd);
+      console.log(`Fallback: Added ${creditsToAdd} subscription credits to Redis for user ${userId}. New balance: ${newBalance}`);
+    }
   } catch (error) {
     console.error('Error adding subscription credits in webhook:', error);
+    throw error; // Re-throw to ensure proper error handling
   }
 }
 

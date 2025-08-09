@@ -42,6 +42,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Authentication required' } });
   }
 
+  // Get user email for metadata (required for webhook processing)
+  const userEmail = req.headers['x-user-email'] as string;
+  if (!userEmail) {
+    return res.status(400).json({ error: { code: 'MISSING_EMAIL', message: 'User email required' } });
+  }
+
   try {
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -76,6 +82,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       cancel_url: `${req.headers.origin || 'https://resumetune.io'}/pricing`,
       metadata: {
         userId,
+        userEmail,
+        plan: planType,
       },
       allow_promotion_codes: true,
     });
