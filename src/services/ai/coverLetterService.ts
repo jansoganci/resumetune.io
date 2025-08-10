@@ -4,17 +4,13 @@ import { ContactInfo } from '../../components/ContactInfoInput';
 import { formatCompleteCoverLetter } from '../../utils/textUtils';
 import { sendAiMessage, AiHistoryItem } from './aiProxyClient';
 import { AppError, ErrorCode, mapUnknownError } from '../../utils/errors';
+import { checkAndConsumeLimit, getErrorMessage } from '../creditService';
 
 export class CoverLetterService {
   private history: AiHistoryItem[] = [];
-  private cvData: CVData | null = null;
-  private jobDescription: JobDescription | null = null;
-  private userProfile: UserProfile | null = null;
 
   async initializeChat(cvData: CVData, jobDescription: JobDescription, userProfile?: UserProfile) {
-    this.cvData = cvData;
-    this.jobDescription = jobDescription;
-    this.userProfile = userProfile || null;
+    // Variables are used directly in the prompt, no need to store as instance variables
     
     const profileSection = userProfile ? `
 CANDIDATE PROFILE:
@@ -42,6 +38,20 @@ You now have the candidate's ${userProfile ? 'profile, ' : ''}CV and the job des
     if (!this.history.length) {
       throw new Error('Cover letter service not initialized. Please try again.');
     }
+
+    // ✅ KREDİ KONTROLÜ - Cover letter generation 1 kredi tüketir
+    const creditCheck = await checkAndConsumeLimit('generate_cover_letter');
+    
+    if (!creditCheck.allowed) {
+      const errorMessage = getErrorMessage(creditCheck);
+      throw new AppError(ErrorCode.QuotaExceeded, errorMessage);
+    }
+
+    console.log('✅ Credit check passed for cover letter generation:', {
+      planType: creditCheck.planType,
+      creditsRemaining: creditCheck.currentCredits,
+      dailyUsage: creditCheck.dailyUsage
+    });
 
     // Debug logs limited to dev environment to avoid leaking PII in production
     if (import.meta.env.DEV) {
@@ -111,13 +121,11 @@ ${formattedCoverLetter}
     } catch (error) {
       console.error('Cover letter generation error:', error);
       const mapped = mapUnknownError(error);
-      throw new AppError({ code: mapped.code || ErrorCode.AiFailed, messageKey: 'errors.aiFailed', cause: error });
+      throw new AppError(mapped.code || ErrorCode.AiFailed, 'AI failed to generate cover letter', {}, error);
     }
   }
 
   reset() {
-    this.cvData = null;
-    this.jobDescription = null;
-    this.userProfile = null;
+    this.history = [];
   }
 }

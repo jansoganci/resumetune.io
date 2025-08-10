@@ -5,6 +5,7 @@ export interface QuotaInfo {
   limit: number;
   plan: 'free' | 'paid';
   credits?: number;
+  planType?: 'free' | 'credits' | 'subscription'; // Yeni alan
 }
 
 // Get user ID from Supabase session or generate anonymous ID
@@ -60,8 +61,9 @@ export async function fetchQuotaInfo(): Promise<QuotaInfo> {
     const quotaInfo: QuotaInfo = {
       used: data.quota.today,
       limit: data.quota.limit,
-      plan: data.subscription ? 'paid' : 'free',
-      credits: data.credits
+      plan: data.plan_type === 'free' ? 'free' : 'paid',
+      credits: data.credits,
+      planType: data.plan_type // Yeni akıllı plan type
     };
     
     return quotaInfo;
@@ -83,6 +85,7 @@ export async function getAccountState(): Promise<{
   quota: { today: number; limit: number };
   credits: number;
   subscription: string | null;
+  plan_type?: 'free' | 'credits' | 'subscription';
 }> {
   try {
     const userId = await getUserId();
@@ -92,7 +95,8 @@ export async function getAccountState(): Promise<{
       return {
         quota: { today: 0, limit: 3 },
         credits: 0,
-        subscription: null
+        subscription: null,
+        plan_type: 'free'
       };
     }
     
@@ -117,7 +121,8 @@ export async function getAccountState(): Promise<{
     return {
       quota: { today: 0, limit: 3 },
       credits: 0,
-      subscription: null
+      subscription: null,
+      plan_type: 'free'
     };
   }
 }

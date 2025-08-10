@@ -17,23 +17,14 @@ function getSupabaseClient() {
   return createClient(supabaseUrl, supabaseServiceKey);
 }
 
-// Redis client import
-async function getRedis() {
-  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
-    return null;
-  }
-  
-  try {
-    const { Redis } = await import('@upstash/redis');
-    return new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL,
-      token: process.env.UPSTASH_REDIS_REST_TOKEN,
-    });
-  } catch (error) {
-    console.error('Failed to connect to Redis:', error);
-    return null;
-  }
-}
+// ================================================================
+// REDIS REMOVED! 🎉
+// ================================================================
+// All Redis functionality has been migrated to Supabase:
+// ✅ Webhook idempotency → webhook_cache table + RPC
+// ✅ Credit/subscription cache → Direct Supabase queries
+// ✅ Fallback logic → Removed (Supabase is single source of truth)
+// ================================================================
 
 export const config = {
   api: {
@@ -241,29 +232,40 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     throw validationError;
   }
 
-  const redis = await getRedis();
-  if (!redis) {
-    console.error('⚠️  Redis not available for webhook processing - continuing without cache');
-    // Don't throw error, continue without Redis
-  }
-
-  // Implement idempotency protection (if Redis available)
-  let alreadyProcessed = false;
-  const idempotencyKey = `processed:${session.id}`;
+  // ✅ SUPABASE IDEMPOTENCY - Redis'ten webhook_cache tablosuna geçiş
+  const supabase = getSupabaseClient();
+  const idempotencyKey = `stripe_session_${session.id}`;
   
-  if (redis) {
-    try {
-      alreadyProcessed = !!(await redis.get(idempotencyKey));
-      if (alreadyProcessed) {
-        console.log(`Session ${session.id} already processed, skipping`);
-        return;
-      }
-      // Mark as processing to prevent race conditions
-      await redis.setex(idempotencyKey, 3600, 'processing'); // 1 hour TTL
-    } catch (redisError) {
-      console.error('⚠️  Redis idempotency check failed, continuing:', redisError);
-      // Continue without idempotency protection
+  // Idempotency check using Supabase webhook_cache
+  console.log(`🔍 Checking idempotency for session: ${session.id}`);
+  
+  try {
+    const { data: cacheResult, error: cacheError } = await supabase
+      .rpc('upsert_webhook_cache', {
+        p_idempotency_key: idempotencyKey,
+        p_webhook_event_id: session.id,
+        p_webhook_type: 'stripe',
+        p_response_status: null, // Will be set later
+        p_response_data: null,
+        p_expires_hours: 24
+      });
+
+    if (cacheError) {
+      console.error('❌ Webhook cache error:', cacheError);
+      throw new Error(`Webhook cache failed: ${cacheError.message}`);
     }
+
+    // Check if this is a duplicate
+    if (cacheResult?.is_duplicate) {
+      console.log(`✅ Session ${session.id} already processed at ${cacheResult.processed_at}, skipping`);
+      return;
+    }
+
+    console.log(`🚀 Processing new session ${session.id} (first time)`);
+
+  } catch (idempotencyError) {
+    console.error('❌ Idempotency check failed:', idempotencyError);
+    throw new Error(`Idempotency protection failed: ${idempotencyError.message}`);
   }
 
   try {
@@ -328,12 +330,9 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
             const newBalance = await updateUserCredits(userId, creditsToAdd);
             console.log(`New balance after update: ${newBalance}`);
             
-            // 3. Update Redis cache for fast access (if available)
-            if (redis) {
-              const key = `credits:${userId}`;
-              await redis.set(key, newBalance); // Set absolute value, not increment
-              console.log(`Updated Redis cache for user ${userId} with balance: ${newBalance}`);
-            }
+            // ✅ Cache removed - Supabase is now authoritative source
+            // api/quota.ts reads directly from Supabase, no cache needed
+            console.log(`✅ Credits updated in Supabase for user ${userId}, new balance: ${newBalance}`);
             
             console.log(`✅ Successfully added ${creditsToAdd} credits to user ${userId}. New balance: ${newBalance}`);
             
@@ -361,26 +360,15 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
               }
             });
           } catch (dbError) {
-            console.error('❌ Database operation failed, falling back to Redis only:', dbError);
+            console.error('❌ Database operation failed:', dbError);
             console.error('Database error details:', {
-              message: dbError.message,
-              stack: dbError.stack
+              message: dbError instanceof Error ? dbError.message : String(dbError),
+              stack: dbError instanceof Error ? dbError.stack : 'No stack trace'
             });
             
-            // Fallback: At least update Redis (if available)
-            if (redis) {
-              try {
-                const key = `credits:${userId}`;
-                await redis.incrby(key, creditsToAdd);
-                console.log(`⚠️  Fallback: Added ${creditsToAdd} credits to Redis for user ${userId}`);
-              } catch (redisError) {
-                console.error('❌ Redis fallback also failed:', redisError);
-                throw new Error(`Both database and Redis failed: ${dbError.message} | ${redisError.message}`);
-              }
-            } else {
-              console.error('❌ Both database and Redis unavailable - credits not updated');
-              throw new Error(`Database failed and Redis unavailable: ${dbError.message}`);
-            }
+            // ✅ No Redis fallback - Supabase is single source of truth
+            // If Supabase fails, webhook should fail and Stripe will retry
+            throw new Error(`Database operation failed: ${dbError instanceof Error ? dbError.message : String(dbError)}`);
           }
         } else {
           console.warn(`⚠️  No credits to add for price ID: ${priceId}`);
@@ -428,17 +416,8 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
             // 3. Update user's total credits in Supabase
             const newBalance = await updateUserCredits(userId, initialCredits);
             
-            // 4. Update Redis cache (if available)
-            if (redis) {
-              const creditsKey = `credits:${userId}`;
-              const subKey = `sub:${userId}`;
-              await Promise.all([
-                redis.set(creditsKey, newBalance),
-                redis.set(subKey, subscriptionPlan)
-              ]);
-            }
-            
-            console.log(`Set subscription ${subscriptionPlan} and added ${initialCredits} credits for user ${userId}. New balance: ${newBalance}`);
+            // ✅ Cache removed - Supabase is authoritative source
+            console.log(`✅ Set subscription ${subscriptionPlan} and added ${initialCredits} credits for user ${userId}. New balance: ${newBalance}`);
             
             // Generate and send invoice for subscription purchase
             const planName = subscriptionPlan === 'sub_100' ? 'Pro Monthly' : 'Pro Yearly';
@@ -454,53 +433,52 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
               stripeInvoiceId: session.id
             };
             
-            // Generate and send invoice in background (non-blocking)
-            setImmediate(async () => {
-              try {
-                await generateAndSendInvoice(invoiceData);
-                console.log(`✅ Subscription invoice sent successfully for user ${userId}`);
-              } catch (invoiceError) {
-                console.error(`⚠️  Failed to send subscription invoice (non-critical):`, invoiceError);
-                // Log error but don't fail the webhook
-              }
-            });
+            await generateAndSendInvoice(invoiceData);
           } catch (dbError) {
-            console.error('Database operation failed, falling back to Redis only:', dbError);
-            // Fallback: At least update Redis (if available)
-            if (redis) {
-              const creditsKey = `credits:${userId}`;
-              const subKey = `sub:${userId}`;
-              await Promise.all([
-                redis.incrby(creditsKey, 300),
-                redis.set(subKey, subscriptionPlan)
-              ]);
-            }
-            console.log(`Fallback: Set subscription ${subscriptionPlan} in Redis for user ${userId}`);
+            console.error('❌ Database operation failed:', dbError);
+            // ✅ No Redis fallback - Supabase is single source of truth
+            throw new Error(`Subscription database operation failed: ${dbError instanceof Error ? dbError.message : String(dbError)}`);
           }
         }
       }
     }
 
-    // Mark as successfully processed (if Redis available)
-    if (redis) {
-      try {
-        await redis.setex(idempotencyKey, 86400, 'completed'); // 24 hour TTL
-      } catch (redisError) {
-        console.error('⚠️  Failed to mark session as completed in Redis:', redisError);
-      }
+    // ✅ Mark as successfully processed in Supabase webhook_cache
+    try {
+      await supabase
+        .from('webhook_cache')
+        .update({ 
+          response_status: 200,
+          response_data: { status: 'completed', processed_at: new Date().toISOString() }
+        })
+        .eq('idempotency_key', idempotencyKey);
+        
+      console.log(`✅ Successfully processed session ${session.id} for user ${userId}`);
+    } catch (updateError) {
+      console.warn('⚠️ Failed to update webhook cache status:', updateError);
+      // Non-critical error, don't throw
     }
-    console.log(`Successfully processed session ${session.id} for user ${userId}`);
     
   } catch (error) {
-    console.error('Error processing webhook for session:', session.id, error);
-    // Remove processing marker so it can be retried (if Redis available)
-    if (redis) {
-      try {
-        await redis.del(idempotencyKey);
-      } catch (redisError) {
-        console.error('⚠️  Failed to remove processing marker from Redis:', redisError);
-      }
+    console.error('❌ Error processing webhook for session:', session.id, error);
+    
+    // Update webhook cache with error status
+    try {
+      await supabase
+        .from('webhook_cache')
+        .update({ 
+          response_status: 500,
+          response_data: { 
+            status: 'error', 
+            error: error instanceof Error ? error.message : String(error),
+            failed_at: new Date().toISOString()
+          }
+        })
+        .eq('idempotency_key', idempotencyKey);
+    } catch (updateError) {
+      console.warn('⚠️ Failed to update webhook cache error status:', updateError);
     }
+    
     throw error; // Re-throw to ensure webhook returns 500 status
   }
 }
@@ -519,11 +497,7 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
     return;
   }
 
-  const redis = await getRedis();
-  if (!redis) {
-    console.error('Redis not available for invoice processing');
-    return;
-  }
+  // ✅ Redis removed - Supabase handles everything
 
   try {
     // Add 300 credits for subscription renewal
@@ -546,11 +520,8 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
       // 2. Update user's total credits in Supabase
       const newBalance = await updateUserCredits(userId, creditsToAdd);
       
-      // 3. Update Redis cache
-      const key = `credits:${userId}`;
-      await redis.set(key, newBalance); // Set absolute value
-      
-      console.log(`Added ${creditsToAdd} subscription credits to user ${userId}. New balance: ${newBalance}`);
+      // ✅ Cache removed - Supabase is authoritative source
+      console.log(`✅ Added ${creditsToAdd} subscription credits to user ${userId}. New balance: ${newBalance}`);
       
       // Generate and send invoice for subscription renewal
       const invoiceData: InvoiceData = {
@@ -567,11 +538,9 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
       
       await generateAndSendInvoice(invoiceData);
     } catch (dbError) {
-      console.error('Database operation failed, falling back to Redis only:', dbError);
-      // Fallback: At least update Redis
-      const key = `credits:${userId}`;
-      const newBalance = await redis.incrby(key, creditsToAdd);
-      console.log(`Fallback: Added ${creditsToAdd} subscription credits to Redis for user ${userId}. New balance: ${newBalance}`);
+      console.error('❌ Database operation failed:', dbError);
+      // ✅ No Redis fallback - Supabase is single source of truth
+      throw new Error(`Subscription renewal database operation failed: ${dbError instanceof Error ? dbError.message : String(dbError)}`);
     }
   } catch (error) {
     console.error('Error adding subscription credits in webhook:', error);
@@ -586,18 +555,14 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     return;
   }
 
-  const redis = await getRedis();
-  if (!redis) {
-    console.error('Redis not available for webhook processing');
-    return;
-  }
-
+  // ✅ Subscription deletion handled in Supabase
   try {
-    const key = `sub:${userId}`;
-    await redis.del(key);
-    console.log(`Removed subscription for user ${userId}`);
+    const supabase = getSupabaseClient();
+    await updateUserSubscription(userId, null, 'canceled');
+    console.log(`✅ Cancelled subscription for user ${userId} in Supabase`);
   } catch (error) {
-    console.error('Error removing subscription in webhook:', error);
+    console.error('❌ Error cancelling subscription in Supabase:', error);
+    throw error; // Re-throw to ensure proper error handling
   }
 }
 

@@ -3,6 +3,7 @@ import { MatchResult, CVData, JobDescription, UserProfile } from '../../types';
 import { sendAiMessage, AiHistoryItem } from './aiProxyClient';
 import { z } from 'zod';
 import { AppError, ErrorCode, mapUnknownError } from '../../utils/errors';
+import { checkAndConsumeLimit, getErrorMessage } from '../creditService';
 
 export class JobMatchService {
   private history: AiHistoryItem[] = [];
@@ -35,6 +36,20 @@ You now have the candidate's ${userProfile ? 'profile, ' : ''}CV and the job des
       throw new Error('Chat not initialized. Please provide CV and job description first.');
     }
 
+    // ✅ KREDİ KONTROLÜ - Job match analysis 1 kredi tüketir
+    const creditCheck = await checkAndConsumeLimit('analyze_job_match');
+    
+    if (!creditCheck.allowed) {
+      const errorMessage = getErrorMessage(creditCheck);
+      throw new AppError(ErrorCode.QuotaExceeded, errorMessage);
+    }
+
+    console.log('✅ Credit check passed for job match analysis:', {
+      planType: creditCheck.planType,
+      creditsRemaining: creditCheck.currentCredits,
+      dailyUsage: creditCheck.dailyUsage
+    });
+
     try {
       const prompt = `Based on the CV and job description provided, decide whether the candidate should apply. ${JOB_MATCH_JSON_INSTRUCTION}`;
       const response = await sendAiMessage(this.history, prompt);
@@ -57,13 +72,13 @@ You now have the candidate's ${userProfile ? 'profile, ' : ''}CV and the job des
     } catch (error) {
       console.error('Error checking match:', error);
       const mapped = mapUnknownError(error);
-      throw new AppError({ code: mapped.code || ErrorCode.AiFailed, messageKey: 'errors.aiFailed', cause: error });
+      throw new AppError(mapped.code || ErrorCode.AiFailed, 'AI failed to check job match', {}, error);
     }
   }
 
   async sendMessage(message: string): Promise<string> {
     if (!this.history.length) {
-      throw new AppError({ code: ErrorCode.InvalidInput, messageKey: 'errors.invalidInput', message: 'Chat not initialized. Please provide CV and job description first.' });
+      throw new AppError(ErrorCode.InvalidInput, 'Chat not initialized. Please provide CV and job description first.');
     }
 
     try {
@@ -74,7 +89,7 @@ You now have the candidate's ${userProfile ? 'profile, ' : ''}CV and the job des
     } catch (error) {
       console.error('Error sending message:', error);
       const mapped = mapUnknownError(error);
-      throw new AppError({ code: mapped.code || ErrorCode.AiFailed, messageKey: 'errors.aiFailed', cause: error });
+      throw new AppError(mapped.code || ErrorCode.AiFailed, 'AI failed to process message', {}, error);
     }
   }
 

@@ -4,6 +4,8 @@ export enum ErrorCode {
   InvalidInput = 'invalid_input',
   ExportFailed = 'export_failed',
   AiFailed = 'ai_failed',
+  QuotaExceeded = 'quota_exceeded',
+  MissingData = 'missing_data',
   Unknown = 'unknown'
 }
 
@@ -18,19 +20,24 @@ export class AppError extends Error {
   public readonly params?: Record<string, string | number | boolean>;
   public readonly cause?: unknown;
 
-  constructor(options: {
+  constructor(code: ErrorCode, message: string, params?: Record<string, string | number | boolean>, cause?: unknown) {
+    super(message);
+    this.name = 'AppError';
+    this.code = code;
+    this.messageKey = message;
+    this.params = params;
+    this.cause = cause;
+  }
+
+  // Legacy constructor for backwards compatibility
+  static fromOptions(options: {
     code: ErrorCode;
     messageKey: string;
     message?: string;
     params?: Record<string, string | number | boolean>;
     cause?: unknown;
   }) {
-    super(options.message || options.messageKey);
-    this.name = 'AppError';
-    this.code = options.code;
-    this.messageKey = options.messageKey;
-    this.params = options.params;
-    this.cause = options.cause;
+    return new AppError(options.code, options.message || options.messageKey, options.params, options.cause);
   }
 }
 
@@ -51,27 +58,15 @@ export const mapUnknownError = (error: unknown): AppError => {
   if (isAppError(error)) return error;
 
   if (looksLikeNetworkError(error)) {
-    return new AppError({
-      code: ErrorCode.NetworkError,
-      messageKey: 'errors.networkError',
-      cause: error
-    });
+    return new AppError(ErrorCode.NetworkError, 'Network error occurred', {}, error);
   }
 
   const message = String((error as any)?.message || '');
   if (/timeout|timed out|ETIMEDOUT/i.test(message)) {
-    return new AppError({
-      code: ErrorCode.Timeout,
-      messageKey: 'errors.timeout',
-      cause: error
-    });
+    return new AppError(ErrorCode.Timeout, 'Request timed out', {}, error);
   }
 
-  return new AppError({
-    code: ErrorCode.Unknown,
-    messageKey: 'errors.unknown',
-    cause: error
-  });
+  return new AppError(ErrorCode.Unknown, 'An unknown error occurred', {}, error);
 };
 
 export const handleApiError = (error: unknown): ErrorMessagePayload => {

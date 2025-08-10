@@ -41,7 +41,17 @@ export async function sendAiMessage(
   // Get user ID for quota tracking
   const userId = await getUserId();
 
-  const response = await fetch('/api/ai/proxy', {
+  // 🚨 DEBUG - Log request data
+  console.log('🔍 AI Proxy Request Debug:', {
+    history: safeHistory,
+    message: safeMessage,
+    model,
+    historyType: Array.isArray(safeHistory),
+    messageType: typeof safeMessage,
+    messageEmpty: !safeMessage
+  });
+
+  const response = await fetch('http://localhost:3001/api/ai/proxy', {
     method: 'POST',
     headers: { 
       'Content-Type': 'application/json',

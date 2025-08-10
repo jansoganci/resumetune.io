@@ -66,7 +66,6 @@ npm run dev
 Set project envs:
 
 - `GEMINI_API_KEY`
-- (optional) `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `RATE_LIMIT_PER_MIN`
 - (optional) `VITE_SENTRY_DSN`
 - (optional) `ADMIN_USAGE_TOKEN` (protects admin usage endpoint)
 
@@ -111,7 +110,6 @@ GA4 Measurement ID is embedded in `index.html` (`G-R2KKQRB75Z`). Replace if need
 | Variable | Purpose | Example Value |
 | --- | --- | --- |
 | STRIPE_API_KEY | Stripe payment processing | sk_live_xxx |
-| UPSTASH_REDIS_URL | Cache / Queue system | rediss://... |
 | SENTRY_DSN | Error monitoring | https://...ingest.sentry.io/... |
 | ADMIN_USAGE_TOKEN | Protects /api/admin/usage endpoint | some-strong-secret |
 

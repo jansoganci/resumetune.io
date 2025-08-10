@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 // Initialize Supabase client for server-side operations
-function getSupabaseClient() {
+export function getSupabaseClient() {
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY; // Service role for server operations
   
@@ -85,16 +85,30 @@ export async function updateUserCredits(userId: string, creditsToAdd: number): P
 /**
  * Update user's subscription plan in Supabase
  */
-export async function updateUserSubscription(userId: string, planType: string): Promise<void> {
+export async function updateUserSubscription(
+  userId: string, 
+  planType: string | null, 
+  status: 'active' | 'canceled' = 'active'
+): Promise<void> {
   const supabase = getSupabaseClient();
+  
+  const updateData: any = {
+    updated_at: new Date().toISOString()
+  };
+
+  if (status === 'canceled') {
+    updateData.subscription_plan = null;
+    updateData.subscription_status = 'canceled';
+    updateData.plan_type = 'free';
+  } else {
+    updateData.subscription_plan = planType;
+    updateData.subscription_status = status;
+    updateData.plan_type = 'paid';
+  }
   
   const { error } = await supabase
     .from('users')
-    .update({ 
-      plan_type: 'paid',
-      subscription_status: 'active',
-      updated_at: new Date().toISOString()
-    })
+    .update(updateData)
     .eq('id', userId);
     
   if (error) {
@@ -102,7 +116,7 @@ export async function updateUserSubscription(userId: string, planType: string): 
     throw new Error(`Failed to update subscription: ${error.message}`);
   }
   
-  console.log(`Updated user ${userId} subscription to ${planType}`);
+  console.log(`User ${userId} subscription updated successfully: ${planType} (${status})`);
 }
 
 /**

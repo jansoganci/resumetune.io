@@ -3,12 +3,10 @@ import { CVData, JobDescription, UserProfile } from '../../types';
 import { cleanDocumentContent } from '../../utils/textUtils';
 import { sendAiMessage, AiHistoryItem } from './aiProxyClient';
 import { AppError, ErrorCode, mapUnknownError } from '../../utils/errors';
+import { checkAndConsumeLimit, getErrorMessage } from '../creditService';
 
 export class ResumeOptimizerService {
   private history: AiHistoryItem[] = [];
-  private cvData: CVData | null = null;
-  private jobDescription: JobDescription | null = null;
-  private userProfile: UserProfile | null = null;
   private resumeData: { targetRole?: string; experienceLevel?: string; keyFocus?: string } = {};
   private isCollectingData = false;
   private currentStep = 0;
@@ -20,9 +18,7 @@ export class ResumeOptimizerService {
   ];
 
   async initializeChat(cvData: CVData, jobDescription: JobDescription, userProfile?: UserProfile) {
-    this.cvData = cvData;
-    this.jobDescription = jobDescription;
-    this.userProfile = userProfile || null;
+    // Variables are used directly in the prompt, no need to store as instance variables
     
     const profileSection = userProfile ? `
 CANDIDATE PROFILE:
@@ -82,6 +78,20 @@ ${nextStep.question}`;
     if (!this.history.length) {
       throw new Error('Chat not initialized');
     }
+
+    // ✅ KREDİ KONTROLÜ - Resume optimization 1 kredi tüketir
+    const creditCheck = await checkAndConsumeLimit('optimize_resume');
+    
+    if (!creditCheck.allowed) {
+      const errorMessage = getErrorMessage(creditCheck);
+      throw new AppError(ErrorCode.QuotaExceeded, errorMessage);
+    }
+
+    console.log('✅ Credit check passed for resume optimization:', {
+      planType: creditCheck.planType,
+      creditsRemaining: creditCheck.currentCredits,
+      dailyUsage: creditCheck.dailyUsage
+    });
 
     try {
       const prompt = `Create a professional, ATS-optimized resume using these specifications:
@@ -145,7 +155,7 @@ ${optimizedResume}
       this.isCollectingData = false;
       this.resumeData = {};
       const mapped = mapUnknownError(error);
-      throw new AppError({ code: mapped.code || ErrorCode.AiFailed, messageKey: 'errors.aiFailed', cause: error });
+      throw new AppError(mapped.code || ErrorCode.AiFailed, 'AI failed to optimize resume', {}, error);
     }
   }
 
@@ -155,9 +165,6 @@ ${optimizedResume}
 
   reset() {
     this.history = [];
-    this.cvData = null;
-    this.jobDescription = null;
-    this.userProfile = null;
     this.resumeData = {};
     this.isCollectingData = false;
     this.currentStep = 0;

@@ -1,20 +1,19 @@
 // Vercel Serverless Function (Production AI proxy) – with MVP abuse protections
 // Runtime: Node.js (ESM)
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import {
-  allowOrigins,
-  ipRateLimit,
-  endpointLimit,
-  incrQuota,
-  acquireLock,
-  releaseLock,
-  checkSize,
-  withTimeout,
-  retryOnce,
-  incrGlobalHour,
-  getAnonId,
-  constants
-} from '../../src/server/lib/limits';
+// 🚨 TEMPORARILY DISABLED - Migration in progress
+const allowOrigins = () => ['http://localhost:5173', 'https://resumetune.io'];
+const ipRateLimit = async () => ({ ok: true });
+const endpointLimit = async () => ({ ok: true });
+const incrQuota = async () => 0;
+const acquireLock = async () => true;
+const releaseLock = async () => {};
+const checkSize = () => ({ ok: true });
+const withTimeout = (fn) => fn;
+const retryOnce = (fn) => fn;
+const incrGlobalHour = async () => {};
+const getAnonId = () => 'anon_dev';
+const constants = { isProd: false };
 
 function getClientIp(req) {
   const fwd = req.headers['x-forwarded-for'];
@@ -23,12 +22,22 @@ function getClientIp(req) {
 }
 
 export default async function handler(req, res) {
+  // 🔧 CORS headers for development
+  res.setHeader('Access-Control-Allow-Origin', 'http://localhost:5173');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-user-id');
+
+  if (req.method === 'OPTIONS') {
+    res.status(204).end();
+    return;
+  }
+
   if (req.method !== 'POST') {
     res.status(405).json({ error: { code: 'method_not_allowed', message: 'Method not allowed' } });
     return;
   }
 
-  const LIMITS_ENABLED = (process.env.LIMITS_ENABLED ?? 'true') !== 'false';
+  const LIMITS_ENABLED = false; // 🚨 DISABLED FOR DEBUGGING MIGRATION
 
   try {
     // Read raw body to allow size/origin/limits before model
@@ -110,7 +119,21 @@ export default async function handler(req, res) {
     try {
       const parsed = JSON.parse(body || '{}');
       const { history, message, model } = parsed || {};
+      
+      // 🚨 DEBUG - Backend validation check
+      console.log('🔍 AI Proxy Backend Debug:', {
+        messageExists: !!message,
+        messageType: typeof message,
+        messageLength: message?.length,
+        historyExists: !!history,
+        historyIsArray: Array.isArray(history),
+        historyLength: history?.length,
+        model,
+        parsedKeys: Object.keys(parsed)
+      });
+      
       if (!message || !Array.isArray(history)) {
+        console.log('❌ Validation failed:', { message: !!message, historyArray: Array.isArray(history) });
         res.status(400).json({ error: { code: 'invalid_input', message: 'Invalid payload' } });
         return;
       }

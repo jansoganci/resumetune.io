@@ -1,17 +1,20 @@
 // Admin Usage Endpoint: GET /api/admin/usage?date=YYYY-MM-DD
 // Auth: header x-admin-token must match process.env.ADMIN_USAGE_TOKEN
 // Returns: { date, usage: { [id]: count } }
+// ✅ MIGRATED TO SUPABASE - No more Redis dependency
 
-type VercelRequest = any;
-type VercelResponse = any;
+import { VercelRequest, VercelResponse } from '@vercel/node';
+import { createClient } from '@supabase/supabase-js';
 
-async function getRedis() {
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (!url || !token) return null;
-  const { Redis } = await import('@upstash/redis');
-  // @ts-ignore - runtime construction
-  return new Redis({ url, token });
+function getSupabaseClient() {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error('Supabase credentials not configured');
+  }
+  
+  return createClient(supabaseUrl, supabaseServiceKey);
 }
 
 function isValidDateString(s: string): boolean {
@@ -44,41 +47,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    const redis = await getRedis();
-    if (!redis) {
-      res.status(501).json({ error: 'Redis not configured' });
-      return;
-    }
-
-    // Collect all keys for the given date
+    // ✅ Use Supabase instead of Redis
+    const supabase = getSupabaseClient();
+    
+    // Get daily usage from Supabase daily_usage table
     let usage: Record<string, number> = {};
     try {
-      const pattern = `quota:*:${date}`;
-      // Use KEYS for simplicity (admin-only, low-frequency). Switch to SCAN if needed.
-      const keys: string[] = (await redis.keys(pattern)) || [];
-      if (keys.length === 0) {
-        res.status(200).json({ date, usage });
+      const { data: dailyUsageData, error } = await supabase
+        .from('daily_usage')
+        .select('user_id, usage_count')
+        .eq('usage_date', date);
+
+      if (error) {
+        console.error('Supabase query error:', error);
+        res.status(500).json({ error: 'Failed to read usage from database' });
         return;
       }
 
-      // Fetch values in bulk
-      // Upstash mget signature accepts variadic args
-      const values: (string | number | null)[] = await redis.mget(...keys);
-      for (let i = 0; i < keys.length; i++) {
-        const k = keys[i];
-        const v = values[i];
-        const parts = k.split(':'); // quota:{id}:{yyyy-mm-dd}
-        const id = parts.length >= 3 ? parts[1] : k;
-        const num = Number(v || 0);
-        usage[id] = num;
+      // Convert to the expected format
+      if (dailyUsageData && dailyUsageData.length > 0) {
+        dailyUsageData.forEach(row => {
+          usage[row.user_id] = row.usage_count;
+        });
       }
+
+      res.status(200).json({ date, usage });
     } catch (e) {
+      console.error('Admin usage query failed:', e);
       res.status(500).json({ error: 'Failed to read usage' });
       return;
     }
-
-    res.status(200).json({ date, usage });
   } catch (err) {
+    console.error('Admin usage handler error:', err);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 }
