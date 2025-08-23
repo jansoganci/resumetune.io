@@ -88,10 +88,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .eq('usage_date', today)
           .single(),
         
-        // Kullanıcı bilgileri (krediler ve abonelik)
+        // Kullanıcı bilgileri (krediler only - subscription fields don't exist yet)
         supabase
           .from('users')
-          .select('credits_balance, subscription_plan, subscription_status')
+          .select('credits_balance')
           .eq('id', userId)
           .single()
       ]);
@@ -127,8 +127,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       } else {
         userCredits = userResult.data?.credits_balance || 0;
-        subscriptionPlan = userResult.data?.subscription_plan;
-        subscriptionStatus = userResult.data?.subscription_status;
+        subscriptionPlan = null; // Subscription not implemented yet
+        subscriptionStatus = null; // Subscription not implemented yet
       }
     }
 
