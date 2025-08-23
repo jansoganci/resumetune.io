@@ -79,51 +79,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.warn('⚠️ Quota check failed for anonymous user, proceeding...');
       }
     } else {
-      // For authenticated users: consume credit
-      try {
-        const { getSupabaseClient } = await import('../stripe/supabase-integration.js');
-        const supabase = getSupabaseClient();
-        
-        // Check current credits
-        const { data: user } = await supabase
-          .from('users')
-          .select('credits_balance')
-          .eq('id', userId)
-          .single();
-          
-        const currentCredits = user?.credits_balance || 0;
-        if (currentCredits <= 0) {
-          return res.status(402).json({ 
-            error: { 
-              code: 'INSUFFICIENT_CREDITS', 
-              message: 'No credits remaining' 
-            }
-          });
-        }
-        
-        // Consume credit
-        const { error: updateError } = await supabase
-          .from('users')
-          .update({
-            credits_balance: Math.max(0, currentCredits - 1),
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', userId);
-          
-        if (updateError) {
-          console.error('❌ Credit consumption failed:', updateError);
-          return res.status(500).json({
-            error: { code: 'CREDIT_ERROR', message: 'Failed to process credits' }
-          });
-        }
-        
-        console.log(`💳 Credit consumed: ${currentCredits} → ${currentCredits - 1} for user ${userId?.substring(0, 8)}...`);
-      } catch (error) {
-        console.error('❌ Credit consumption failed:', error);
-        return res.status(500).json({
-          error: { code: 'CREDIT_ERROR', message: 'Failed to process credits' }
-        });
-      }
+      // For authenticated users: NO credit consumption here
+      // Credits are consumed by frontend checkAndConsumeLimit() before calling this API
+      console.log(`🔍 AI request for authenticated user ${userId?.substring(0, 8)}... (credits already consumed by frontend)`);
     }
 
     // Initialize Gemini AI
