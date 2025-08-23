@@ -1,5 +1,5 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { getSupabaseClient } from './stripe/supabase-integration';
+import { getSupabaseClient } from './stripe/supabase-integration.js';
 
 // ================================================================
 // QUOTA API - SUPABASE VERSION

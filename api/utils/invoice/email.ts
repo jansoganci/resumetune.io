@@ -4,8 +4,8 @@
  */
 
 import { Resend } from 'resend';
-import { generateInvoiceHTML } from './generate';
-import { InvoiceData } from './types';
+import { generateInvoiceHTML } from './generate.js';
+import { InvoiceData } from './types.js';
 
 /**
  * Sends an invoice email with PDF attachment

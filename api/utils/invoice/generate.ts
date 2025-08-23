@@ -3,7 +3,7 @@
  * Handles HTML template generation and PDF conversion for invoices
  */
 
-import { InvoiceData } from './types';
+import { InvoiceData } from './types.js';
 
 /**
  * Generates HTML content for an invoice
