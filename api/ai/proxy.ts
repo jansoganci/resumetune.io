@@ -58,7 +58,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (isAnonymous) {
       // For anonymous users: check daily quota limit
       try {
-        const { getSupabaseClient } = await import('./stripe/supabase-integration.js');
+        const { getSupabaseClient } = await import('../stripe/supabase-integration.js');
         const supabase = getSupabaseClient();
         
         const today = new Date().toISOString().slice(0, 10);
@@ -81,7 +81,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } else {
       // For authenticated users: consume credit
       try {
-        const { getSupabaseClient } = await import('./stripe/supabase-integration.js');
+        const { getSupabaseClient } = await import('../stripe/supabase-integration.js');
         const supabase = getSupabaseClient();
         
         // Check current credits
@@ -159,7 +159,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Increment usage for anonymous users (after successful AI call)
     if (isAnonymous) {
       try {
-        const { getSupabaseClient } = await import('./stripe/supabase-integration.js');
+        const { getSupabaseClient } = await import('../stripe/supabase-integration.js');
         const supabase = getSupabaseClient();
         const today = new Date().toISOString().slice(0, 10);
         
