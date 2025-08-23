@@ -27,7 +27,7 @@ export class GeminiService {
 
   async checkMatch(): Promise<MatchResult> {
     if (!this.cvData || !this.jobDescription) {
-      throw new AppError({ code: ErrorCode.InvalidInput, messageKey: 'errors.invalidInput', message: 'CV and job description must be provided first' });
+      throw AppError.fromOptions({ code: ErrorCode.InvalidInput, messageKey: 'errors.invalidInput', message: 'CV and job description must be provided first' });
     }
 
     return await this.jobMatchService.checkMatch();
@@ -35,7 +35,7 @@ export class GeminiService {
 
   async sendMessage(message: string, contactInfo?: ContactInfo): Promise<string> {
     if (!this.cvData || !this.jobDescription) {
-      throw new AppError({ code: ErrorCode.InvalidInput, messageKey: 'errors.invalidInput', message: 'Chat not initialized. Please add profile, upload CV and job description first.' });
+      throw AppError.fromOptions({ code: ErrorCode.InvalidInput, messageKey: 'errors.invalidInput', message: 'Chat not initialized. Please add profile, upload CV and job description first.' });
     }
 
     // Check if user wants to generate cover letter
@@ -57,7 +57,7 @@ export class GeminiService {
       } catch (error) {
         console.error('Cover letter generation error:', error);
         const mapped = mapUnknownError(error);
-        throw new AppError({ code: mapped.code || ErrorCode.AiFailed, messageKey: 'errors.aiFailed', cause: error });
+        throw AppError.fromOptions({ code: mapped.code || ErrorCode.AiFailed, messageKey: 'errors.aiFailed', cause: error });
       }
     }
 
@@ -88,7 +88,7 @@ What specific role title should I optimize for? (e.g., "Senior SAP Consultant", 
       return await this.jobMatchService.sendMessage(message);
     } catch (error) {
       const mapped = mapUnknownError(error);
-      throw new AppError({ code: mapped.code || ErrorCode.AiFailed, messageKey: 'errors.aiFailed', cause: error });
+      throw AppError.fromOptions({ code: mapped.code || ErrorCode.AiFailed, messageKey: 'errors.aiFailed', cause: error });
     }
   }
 
