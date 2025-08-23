@@ -52,6 +52,80 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const userId = req.headers['x-user-id'] as string;
     console.log(`🤖 AI request from user ${userId?.substring(0, 8)}... with model ${model}`);
 
+    // Check credits/quota before processing
+    const isAnonymous = userId?.startsWith('anon_');
+    
+    if (isAnonymous) {
+      // For anonymous users: check daily quota limit
+      try {
+        const { getSupabaseClient } = await import('./stripe/supabase-integration.js');
+        const supabase = getSupabaseClient();
+        
+        const today = new Date().toISOString().slice(0, 10);
+        const { data: usage } = await supabase
+          .from('daily_usage')
+          .select('ai_calls_count')
+          .eq('user_id', userId)
+          .eq('usage_date', today)
+          .single();
+          
+        const currentUsage = usage?.ai_calls_count || 0;
+        if (currentUsage >= 3) {
+          return res.status(429).json({ 
+            error: { code: 'QUOTA_EXCEEDED', message: 'Daily limit of 3 AI calls reached' }
+          });
+        }
+      } catch (error) {
+        console.warn('⚠️ Quota check failed for anonymous user, proceeding...');
+      }
+    } else {
+      // For authenticated users: consume credit
+      try {
+        const { getSupabaseClient } = await import('./stripe/supabase-integration.js');
+        const supabase = getSupabaseClient();
+        
+        // Check current credits
+        const { data: user } = await supabase
+          .from('users')
+          .select('credits_balance')
+          .eq('id', userId)
+          .single();
+          
+        const currentCredits = user?.credits_balance || 0;
+        if (currentCredits <= 0) {
+          return res.status(402).json({ 
+            error: { 
+              code: 'INSUFFICIENT_CREDITS', 
+              message: 'No credits remaining' 
+            }
+          });
+        }
+        
+        // Consume credit
+        const { error: updateError } = await supabase
+          .from('users')
+          .update({
+            credits_balance: Math.max(0, currentCredits - 1),
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', userId);
+          
+        if (updateError) {
+          console.error('❌ Credit consumption failed:', updateError);
+          return res.status(500).json({
+            error: { code: 'CREDIT_ERROR', message: 'Failed to process credits' }
+          });
+        }
+        
+        console.log(`💳 Credit consumed: ${currentCredits} → ${currentCredits - 1} for user ${userId?.substring(0, 8)}...`);
+      } catch (error) {
+        console.error('❌ Credit consumption failed:', error);
+        return res.status(500).json({
+          error: { code: 'CREDIT_ERROR', message: 'Failed to process credits' }
+        });
+      }
+    }
+
     // Initialize Gemini AI
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const geminiModel = genAI.getGenerativeModel({ model });
@@ -81,6 +155,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     console.log(`✅ AI response generated successfully (${text.length} chars)`);
+
+    // Increment usage for anonymous users (after successful AI call)
+    if (isAnonymous) {
+      try {
+        const { getSupabaseClient } = await import('./stripe/supabase-integration.js');
+        const supabase = getSupabaseClient();
+        const today = new Date().toISOString().slice(0, 10);
+        
+        await supabase.rpc('increment_daily_usage', {
+          p_user_id: userId,
+          p_usage_date: today
+        });
+        
+        console.log(`📊 Usage incremented for anonymous user ${userId?.substring(0, 8)}...`);
+      } catch (error) {
+        console.warn('⚠️ Failed to increment usage for anonymous user:', error);
+      }
+    }
 
     return res.status(200).json({
       text,
