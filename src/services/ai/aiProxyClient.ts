@@ -51,7 +51,7 @@ export async function sendAiMessage(
     messageEmpty: !safeMessage
   });
 
-  const response = await fetch('http://localhost:3001/api/ai/proxy', {
+  const response = await fetch('/api/ai/proxy', {
     method: 'POST',
     headers: { 
       'Content-Type': 'application/json',

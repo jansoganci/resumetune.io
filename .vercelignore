@@ -1,0 +1,22 @@
+# Ignore TypeScript compilation artifacts
+*.js.map
+*.d.ts
+
+# Ignore development files
+.env.local
+.env.development
+.env.test
+
+# Ignore build artifacts
+dist/
+build/
+.next/
+
+# Ignore test files
+**/*.test.*
+**/*.spec.*
+test_*.js
+
+# Ignore documentation
+docs/
+*.md
