@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { User, CreditCard, Calendar, TrendingUp } from 'lucide-react';
+import { User, CreditCard, TrendingUp } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { useAuth } from '../contexts/AuthContext';
@@ -69,7 +69,7 @@ export default function AccountPage() {
     });
   };
 
-  const quotaPercentage = quotaInfo ? Math.round((quotaInfo.used / quotaInfo.limit) * 100) : 0;
+
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -117,45 +117,7 @@ export default function AccountPage() {
             </div>
           </div>
 
-          {/* Today's Usage */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center space-x-3 mb-4">
-              <Calendar className="w-5 h-5 text-blue-600" />
-              <h3 className="text-lg font-semibold text-gray-900">Today's Usage</h3>
-            </div>
-            {loading ? (
-              <div className="animate-pulse">
-                <div className="h-4 bg-gray-200 rounded mb-2"></div>
-                <div className="h-6 bg-gray-200 rounded"></div>
-              </div>
-            ) : quotaInfo ? (
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Requests Used</span>
-                  <span className="font-semibold text-gray-900">
-                    {quotaInfo.used} / {quotaInfo.limit}
-                  </span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className={`h-2 rounded-full ${
-                      quotaPercentage >= 90 
-                        ? 'bg-red-600' 
-                        : quotaPercentage >= 70 
-                        ? 'bg-amber-500' 
-                        : 'bg-blue-600'
-                    }`}
-                    style={{ width: `${Math.min(quotaPercentage, 100)}%` }}
-                  ></div>
-                </div>
-                <p className="text-xs text-gray-500">
-                  {quotaInfo.limit - quotaInfo.used} requests remaining today
-                </p>
-              </div>
-            ) : (
-              <p className="text-gray-500">Unable to load usage data</p>
-            )}
-          </div>
+
         </div>
 
         {/* User Information */}

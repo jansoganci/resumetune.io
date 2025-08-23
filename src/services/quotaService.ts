@@ -33,11 +33,11 @@ export async function fetchQuotaInfo(): Promise<QuotaInfo> {
   try {
     const userId = await getUserId();
     
-    // If user is anonymous, return mock data
+    // If user is anonymous, return default data
     if (userId.startsWith('anon_')) {
       return {
-        used: Math.floor(Math.random() * 3), // Random usage for demo
-        limit: 3, // Free tier limit
+        used: 0, // Not needed anymore, but keep for compatibility
+        limit: 3, // Not needed anymore, but keep for compatibility
         plan: 'free',
         credits: 0
       };
@@ -59,11 +59,11 @@ export async function fetchQuotaInfo(): Promise<QuotaInfo> {
     const data = await response.json();
     
     const quotaInfo: QuotaInfo = {
-      used: data.quota.today,
-      limit: data.quota.limit,
+      used: data.quota.today, // Keep for compatibility but not displayed
+      limit: data.quota.limit, // Keep for compatibility but not displayed
       plan: data.plan_type === 'free' ? 'free' : 'paid',
-      credits: data.credits,
-      planType: data.plan_type // Yeni akıllı plan type
+      credits: data.credits, // This is what AccountPage displays
+      planType: data.plan_type
     };
     
     return quotaInfo;
