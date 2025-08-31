@@ -50,8 +50,8 @@ export function useCaptcha(): UseCaptchaReturn {
     try {
       setError(null);
       
-      // Call the enhanced abuse protection API to check CAPTCHA requirement
-      const response = await fetch('/api/captcha/check-requirement', {
+      // Call the consolidated CAPTCHA API to check requirement
+      const response = await fetch('/api/captcha?action=check-requirement', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -80,8 +80,8 @@ export function useCaptcha(): UseCaptchaReturn {
       setError(null);
       setIsVerifying(true);
       
-      // Call the enhanced CAPTCHA challenge creation API
-      const response = await fetch('/api/captcha/create-challenge', {
+      // Call the consolidated CAPTCHA API to create challenge
+      const response = await fetch('/api/captcha?action=create-challenge', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -118,8 +118,8 @@ export function useCaptcha(): UseCaptchaReturn {
       setError(null);
       setIsVerifying(true);
       
-      // Call the CAPTCHA verification API
-      const response = await fetch('/api/captcha/verify', {
+      // Call the consolidated CAPTCHA API to verify
+      const response = await fetch('/api/captcha?action=verify', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -80,8 +80,8 @@ export function CaptchaProvider({
     }
 
     try {
-      // Call bypass API endpoint
-      const response = await fetch('/api/captcha/bypass', {
+      // Call consolidated CAPTCHA API for bypass
+      const response = await fetch('/api/captcha?action=bypass', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

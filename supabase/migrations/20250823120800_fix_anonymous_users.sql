@@ -12,6 +12,11 @@
 ALTER TABLE public.daily_usage 
 DROP CONSTRAINT IF EXISTS daily_usage_user_id_fkey;
 
+-- Drop existing policies that depend on the user_id column
+DROP POLICY IF EXISTS "Users can access own daily usage" ON public.daily_usage;
+DROP POLICY IF EXISTS "Anonymous users can access daily usage" ON public.daily_usage;
+DROP POLICY IF EXISTS "Service role full access" ON public.daily_usage;
+
 -- Change user_id column from UUID to TEXT to support both UUIDs and anonymous IDs
 ALTER TABLE public.daily_usage 
 ALTER COLUMN user_id TYPE TEXT USING user_id::TEXT;
