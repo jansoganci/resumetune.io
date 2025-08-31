@@ -1,8 +1,8 @@
 import Stripe from 'stripe';
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { generateInvoiceHTML, generateInvoicePDF, sendInvoiceEmail } from '../utils/invoice/index.js';
-import { InvoiceData } from '../utils/invoice/types.js';
-import { recordCreditTransaction, updateUserCredits, updateUserSubscription, CreditTransaction } from './supabase-integration.js';
+import { generateInvoiceHTML, generateInvoicePDF, sendInvoiceEmail } from '../src/lib/utils/invoice/index.js';
+import { InvoiceData } from '../src/lib/utils/invoice/types.js';
+import { recordCreditTransaction, updateUserCredits, updateUserSubscription, CreditTransaction } from '../src/lib/stripe/supabase-integration.js';
 import { createClient } from '@supabase/supabase-js';
 
 // Import Supabase client function for user validation
@@ -246,7 +246,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     }
     
     // Validate email consistency
-    if (user.email !== userEmail) {
+    if (user && user.email !== userEmail) {
       console.error(`Email mismatch for user ${userId}: DB=${user.email}, Stripe=${userEmail}`);
       throw new Error(`Email mismatch for user ${userId}`);
     }

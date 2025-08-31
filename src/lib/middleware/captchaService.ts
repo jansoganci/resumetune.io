@@ -167,7 +167,7 @@ export class CaptchaService {
    */
   validateTokenFormat(token: string): boolean {
     // hCaptcha tokens are typically long alphanumeric strings
-    return token && token.length > 20 && /^[a-zA-Z0-9_-]+$/.test(token);
+    return !!(token && token.length > 20 && /^[a-zA-Z0-9_-]+$/.test(token));
   }
 }
 

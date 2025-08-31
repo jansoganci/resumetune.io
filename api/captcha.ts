@@ -11,11 +11,11 @@
 // - verify: Verifies CAPTCHA tokens from frontend
 
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { createEnhancedCaptchaChallenge } from './middleware/enhancedAbuseProtection';
-import { checkCaptchaBypass } from './middleware/conditionalCaptcha';
-import { checkConditionalCaptcha } from './middleware/conditionalCaptcha';
-import { captchaService, CaptchaVerificationResult } from './middleware/captchaService.js';
-import { extractClientIP } from './utils/ipUtils.js';
+import { createEnhancedCaptchaChallenge } from '../src/lib/middleware/enhancedAbuseProtection.js';
+import { checkCaptchaBypass } from '../src/lib/middleware/conditionalCaptcha.js';
+import { checkConditionalCaptcha } from '../src/lib/middleware/conditionalCaptcha.js';
+import { captchaService, CaptchaVerificationResult } from '../src/lib/middleware/captchaService.js';
+import { extractClientIP } from '../src/lib/utils/ipUtils.js';
 
 // Type definitions for different actions
 interface CreateChallengeRequest {
@@ -50,7 +50,7 @@ interface CheckRequirementResponse {
   bypassAllowed: boolean;
   abuseScore: number;
   reason?: string;
-  challengeType?: string;
+  challengeType?: string | null;
   siteKey?: string;
   expiresAt?: string;
 }
@@ -67,7 +67,7 @@ interface VerifyResponse {
   challengeId?: string;
   verifiedAt?: string;
   expiresAt?: string;
-  userId?: string;
+  userId?: string | null;
   ipAddress?: string;
 }
 

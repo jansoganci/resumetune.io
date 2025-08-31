@@ -4,7 +4,7 @@
 // This middleware implements anonymous user abuse detection
 // Integrates with existing anonymous ID generation system
 
-import { VercelRequest, VercelResponse } from '@vercel/node';
+import { VercelRequest } from '@vercel/node';
 import { getSupabaseClient } from '../stripe/supabase-integration.js';
 import { extractClientIP } from '../utils/ipUtils.js';
 

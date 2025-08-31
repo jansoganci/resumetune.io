@@ -4,8 +4,8 @@
 // This middleware implements conditional CAPTCHA logic
 // Only shows CAPTCHA when abuse patterns are detected
 
-import { VercelRequest, VercelResponse } from '@vercel/node';
-import { captchaService, CaptchaVerificationResult } from './captchaService.js';
+import { VercelRequest } from '@vercel/node';
+import { captchaService } from './captchaService.js';
 import { checkRequestAnonymousAbuse, AnonymousAbuseResult } from './anonymousAbuseDetection.js';
 import { checkIPRateLimit, RateLimitResult } from './rateLimit.js';
 import { extractClientIP } from '../utils/ipUtils.js';
@@ -43,8 +43,6 @@ export async function checkConditionalCaptcha(
   req: VercelRequest
 ): Promise<ConditionalCaptchaResult> {
   try {
-    const clientIP = extractClientIP(req);
-    
     // Step 1: Check IP rate limiting
     const rateLimitResult = await checkIPRateLimit(req, {} as any);
     
@@ -173,11 +171,9 @@ function getCaptchaReason(
  * Create a new CAPTCHA challenge for the user
  */
 export async function createCaptchaChallenge(
-  req: VercelRequest,
-  userId?: string
+  req: VercelRequest
 ): Promise<CaptchaChallengeResult> {
   try {
-    const clientIP = extractClientIP(req);
     const challengeId = captchaService.generateChallengeId();
     
     const challenge: CaptchaChallengeResult = {
@@ -205,12 +201,9 @@ export async function createCaptchaChallenge(
  * Implements progressive CAPTCHA display logic
  */
 export async function checkCaptchaBypass(
-  req: VercelRequest,
-  userId?: string
+  req: VercelRequest
 ): Promise<CaptchaBypassResult> {
   try {
-    const clientIP = extractClientIP(req);
-    
     // Check current abuse status
     const abuseResult = await checkRequestAnonymousAbuse(req);
     

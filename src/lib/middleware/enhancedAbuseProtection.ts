@@ -5,7 +5,7 @@
 // Provides progressive CAPTCHA display based on abuse patterns
 
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { checkAbuseProtection, AbuseProtectionResult } from './abuseProtection.js';
+import { checkAbuseProtection } from './abuseProtection.js';
 import { 
   checkConditionalCaptcha, 
   ConditionalCaptchaResult,
@@ -53,8 +53,7 @@ export async function checkEnhancedAbuseProtection(
     enableAbuseDetection = true,
     enableConditionalCaptcha = true,
     requireCaptcha = false,
-    logAbuseAttempts = true,
-    trackCaptchaCompletions = true
+    logAbuseAttempts = true
   } = options;
 
   try {
@@ -135,8 +134,7 @@ export async function checkEnhancedAbuseProtection(
  * Generates challenge and tracks it for verification
  */
 export async function createEnhancedCaptchaChallenge(
-  req: VercelRequest,
-  userId?: string
+  req: VercelRequest
 ): Promise<{
   challengeId: string;
   siteKey: string;
@@ -152,7 +150,7 @@ export async function createEnhancedCaptchaChallenge(
     }
     
     // Create the challenge
-    const challenge = await createCaptchaChallenge(req, userId);
+    const challenge = await createCaptchaChallenge(req);
     
     return {
       challengeId: challenge.challengeId,
@@ -251,8 +249,7 @@ function setEnhancedAbuseProtectionHeaders(
  * Implements intelligent CAPTCHA display timing
  */
 export async function shouldShowProgressiveCaptcha(
-  req: VercelRequest,
-  userId?: string
+  req: VercelRequest
 ): Promise<{
   show: boolean;
   reason: string;
@@ -261,7 +258,7 @@ export async function shouldShowProgressiveCaptcha(
 }> {
   try {
     const conditionalResult = await checkConditionalCaptcha(req);
-    const bypassCheck = await checkCaptchaBypass(req, userId);
+    const bypassCheck = await checkCaptchaBypass(req);
     
     // Progressive CAPTCHA logic:
     // 1. Show immediately for critical abuse (score >= 80)

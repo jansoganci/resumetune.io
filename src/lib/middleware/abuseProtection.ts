@@ -45,7 +45,6 @@ export async function checkAbuseProtection(
     enableRateLimiting = true,
     enableAnonymousTracking = true,
     enableAbuseDetection = true,
-    requireCaptcha = false,
     logAbuseAttempts = true
   } = options;
 
