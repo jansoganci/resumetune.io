@@ -5,7 +5,7 @@
 // Provides real-time statistics, system health, and usage information
 
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { getAbuseProtectionStatus } from '../src/lib/middleware/abuseProtection.js';
+import { getAbuseProtectionStatus } from '../src/lib/middleware/abuseProtection';
 import { createClient } from '@supabase/supabase-js';
 
 function getSupabaseClient() {

@@ -1,8 +1,8 @@
 import Stripe from 'stripe';
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { generateInvoiceHTML, generateInvoicePDF, sendInvoiceEmail } from '../src/lib/utils/invoice/index.js';
-import { InvoiceData } from '../src/lib/utils/invoice/types.js';
-import { recordCreditTransaction, updateUserCredits, updateUserSubscription, CreditTransaction } from '../src/lib/stripe/supabase-integration.js';
+import { generateInvoiceHTML, generateInvoicePDF, sendInvoiceEmail } from '../src/lib/utils/invoice/index';
+import { InvoiceData } from '../src/lib/utils/invoice/types';
+import { recordCreditTransaction, updateUserCredits, updateUserSubscription, CreditTransaction } from '../src/lib/stripe/supabase-integration';
 import { createClient } from '@supabase/supabase-js';
 
 // Import Supabase client function for user validation

@@ -1,5 +1,5 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { getSupabaseClient } from '../src/lib/stripe/supabase-integration.js';
+import { getSupabaseClient } from '../src/lib/stripe/supabase-integration';
 
 // ================================================================
 // CONSUME CREDIT API ENDPOINT
