@@ -191,10 +191,15 @@ async function generateAndSendInvoice(invoiceData: InvoiceData) {
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   console.log(`Starting checkout processing for session: ${session.id}`);
   console.log(`Session metadata:`, JSON.stringify(session.metadata, null, 2));
+  console.log(`Session customer_email:`, session.customer_email);
+  console.log(`Session mode:`, session.mode);
+  console.log(`Session payment_status:`, session.payment_status);
   
   const userId = session.metadata?.userId;
   const userEmail = session.metadata?.userEmail;
   const plan = session.metadata?.plan;
+  
+  console.log(`🔍 EXTRACTED VALUES:`, { userId, userEmail, plan });
   
   if (!userId) {
     console.error('No userId in session metadata:', session.id);
@@ -216,8 +221,28 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       .single();
       
     if (userError || !user) {
-      console.error(`User ${userId} not found in database:`, userError);
-      throw new Error(`User not found: ${userId}`);
+      console.error(`❌ User ${userId} not found in database:`, userError);
+      console.log(`🔧 ATTEMPTING TO CREATE USER: ${userId} with email: ${userEmail}`);
+      
+      // Create the user if they don't exist (fallback for incomplete auth flow)
+      const { data: newUser, error: createError } = await supabase
+        .from('users')
+        .insert({
+          id: userId,
+          email: userEmail || session.customer_email,
+          credits_balance: 0,
+          created_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+        
+      if (createError) {
+        console.error(`❌ Failed to create user ${userId}:`, createError);
+        throw new Error(`User not found and creation failed: ${userId}`);
+      }
+      
+      console.log(`✅ Created missing user: ${userId}`);
+      // Continue to credit processing with new user
     }
     
     // Validate email consistency

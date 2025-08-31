@@ -60,6 +60,64 @@ export async function sendAiMessage(
     body: JSON.stringify({ history: safeHistory, message: safeMessage, model })
   });
 
+  // Handle CAPTCHA requirement
+  if (response.status === 429 && response.headers.get('X-Captcha-Required') === 'true') {
+    throw new Error('CAPTCHA_REQUIRED');
+  }
+
+  if (!response.ok) {
+    try {
+      const data = await response.json();
+      const msg = (data?.error?.message || data?.error || data?.message || 'AI request failed');
+      throw new Error(msg);
+    } catch (_) {
+      throw new Error('AI request failed');
+    }
+  }
+
+  const data = await response.json();
+  return data.text as string;
+}
+
+// Enhanced AI message function with CAPTCHA support
+export async function sendAiMessageWithCaptcha(
+  history: AiHistoryItem[],
+  message: string,
+  model = 'gemini-1.5-flash',
+  captchaToken?: string
+): Promise<string> {
+  // Keep payload small in dev: last 8 entries and trimmed
+  const safeHistory = (history || []).slice(-8).map(h => ({
+    role: h.role,
+    parts: [{ text: (h.parts?.[0]?.text || '').slice(0, 4000) }]
+  }));
+  const safeMessage = (message || '').slice(0, 4000);
+
+  // Get user ID for quota tracking
+  const userId = await getUserId();
+
+  // Prepare headers
+  const headers: Record<string, string> = { 
+    'Content-Type': 'application/json',
+    'x-user-id': userId
+  };
+
+  // Add CAPTCHA token if provided
+  if (captchaToken) {
+    headers['X-Captcha-Token'] = captchaToken;
+  }
+
+  const response = await fetch('/api/ai/proxy', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ history: safeHistory, message: safeMessage, model })
+  });
+
+  // Handle CAPTCHA requirement
+  if (response.status === 429 && response.headers.get('X-Captcha-Required') === 'true') {
+    throw new Error('CAPTCHA_REQUIRED');
+  }
+
   if (!response.ok) {
     try {
       const data = await response.json();
