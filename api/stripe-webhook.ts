@@ -1,21 +1,7 @@
 import Stripe from 'stripe';
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { generateInvoiceHTML, generateInvoicePDF, sendInvoiceEmail } from '../src/lib/utils/invoice/index';
-import { InvoiceData } from '../src/lib/utils/invoice/types';
-import { recordCreditTransaction, updateUserCredits, updateUserSubscription, CreditTransaction } from '../src/lib/stripe/supabase-integration';
-import { createClient } from '@supabase/supabase-js';
-
-// Import Supabase client function for user validation
-function getSupabaseClient() {
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  
-  if (!supabaseUrl || !supabaseServiceKey) {
-    throw new Error('Missing Supabase environment variables');
-  }
-  
-  return createClient(supabaseUrl, supabaseServiceKey);
-}
+import { generateInvoiceHTML, generateInvoicePDF, sendInvoiceEmail, InvoiceData } from './_lib/utils.js';
+import { recordCreditTransaction, updateUserCredits, updateUserSubscription, CreditTransaction, getSupabaseClient } from './_lib/supabase.js';
 
 // ================================================================
 // REDIS REMOVED! 🎉
@@ -121,7 +107,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           await handleCheckoutCompleted(session);
         } catch (error) {
           console.error(`Failed to handle checkout.session.completed for ${event.id}:`, error);
-          console.error('Error stack:', error.stack);
+          console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace available');
           return res.status(500).json({ error: { code: 'CHECKOUT_PROCESSING_FAILED', message: 'Failed to process checkout' } });
         }
         break;
@@ -160,19 +146,14 @@ async function generateAndSendInvoice(invoiceData: InvoiceData) {
     console.log('Starting invoice generation for:', invoiceData.customerEmail);
     
     // Generate PDF invoice
-    const pdfBuffer = await generateInvoicePDF(generateInvoiceHTML(invoiceData));
+    const pdfBuffer = await generateInvoicePDF(invoiceData);
     console.log('PDF generated successfully, size:', pdfBuffer.length, 'bytes');
     
     // Send email with PDF attachment
     const emailSent = await sendInvoiceEmail(
       invoiceData.customerEmail,
-      pdfBuffer,
-      {
-        productName: invoiceData.productName,
-        creditsDelivered: invoiceData.creditsDelivered,
-        amount: invoiceData.amount,
-        currency: invoiceData.currency
-      }
+      invoiceData,
+      pdfBuffer
     );
     
     if (emailSent) {
@@ -290,7 +271,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   } catch (idempotencyError) {
     console.error('❌ Idempotency check failed:', idempotencyError);
-    throw new Error(`Idempotency protection failed: ${idempotencyError.message}`);
+    throw new Error(`Idempotency protection failed: ${idempotencyError instanceof Error ? idempotencyError.message : 'Unknown error'}`);
   }
 
   try {
@@ -307,7 +288,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       console.log(`Retrieved ${lineItems.length} line items for session ${session.id}`);
     } catch (lineItemError) {
       console.error('Failed to retrieve line items:', lineItemError);
-      throw new Error(`Failed to retrieve line items: ${lineItemError.message}`);
+      throw new Error(`Failed to retrieve line items: ${lineItemError instanceof Error ? lineItemError.message : 'Unknown error'}`);
     }
 
     if (session.mode === 'payment') {

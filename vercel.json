@@ -1,7 +1,8 @@
 {
   "functions": {
     "api/**/*.ts": {
-      "runtime": "@vercel/node@5.3.11"
+      "runtime": "@vercel/node@5.3.11",
+      "maxDuration": 10
     }
   },
   "rewrites": [

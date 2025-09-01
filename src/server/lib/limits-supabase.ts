@@ -7,7 +7,7 @@
  * işlemlerini Supabase RPC fonksiyonları ile yapar
  */
 
-import { getSupabaseClient } from '../../../api/stripe/supabase-integration';
+import { getSupabaseClient } from '../../../api/_lib/supabase.js';
 
 // Types (orijinalden korunmuş)
 export type RateResult = { 

@@ -5,19 +5,8 @@
 // Provides real-time statistics, system health, and usage information
 
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { getAbuseProtectionStatus } from '../src/lib/middleware/abuseProtection';
-import { createClient } from '@supabase/supabase-js';
-
-function getSupabaseClient() {
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  
-  if (!supabaseUrl || !supabaseServiceKey) {
-    throw new Error('Supabase credentials not configured');
-  }
-  
-  return createClient(supabaseUrl, supabaseServiceKey);
-}
+import { getAbuseProtectionStatus } from './_lib/middleware.js';
+import { getSupabaseClient } from './_lib/supabase.js';
 
 function isValidDateString(s: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;

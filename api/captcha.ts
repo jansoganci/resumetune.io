@@ -11,11 +11,11 @@
 // - verify: Verifies CAPTCHA tokens from frontend
 
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { createEnhancedCaptchaChallenge } from '../src/lib/middleware/enhancedAbuseProtection';
-import { checkCaptchaBypass } from '../src/lib/middleware/conditionalCaptcha';
-import { checkConditionalCaptcha } from '../src/lib/middleware/conditionalCaptcha';
-import { captchaService, CaptchaVerificationResult } from '../src/lib/middleware/captchaService';
-import { extractClientIP } from '../src/lib/utils/ipUtils';
+import { createEnhancedCaptchaChallenge } from './_lib/middleware.js';
+import { checkCaptchaBypass } from './_lib/middleware.js';
+import { checkConditionalCaptcha } from './_lib/middleware.js';
+import { captchaService, CaptchaVerificationResult } from './_lib/middleware.js';
+import { extractClientIP } from './_lib/utils.js';
 
 // Type definitions for different actions
 interface CreateChallengeRequest {

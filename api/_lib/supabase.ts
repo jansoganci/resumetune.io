@@ -1,5 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 
+// ================================================================
+// ISOLATED SUPABASE FUNCTIONS FOR API ENDPOINTS
+// ================================================================
+// This module contains all Supabase-related functions needed by API endpoints
+// Isolated from src/ to avoid cross-boundary import issues
+
 // Initialize Supabase client for server-side operations
 export function getSupabaseClient() {
   const supabaseUrl = process.env.SUPABASE_URL;
