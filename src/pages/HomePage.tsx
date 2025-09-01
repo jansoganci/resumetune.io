@@ -1,15 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
-import { FileText, Zap, AlertCircle } from 'lucide-react';
+import { Zap } from 'lucide-react';
 import Header from '../components/Header';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '../components/ToastProvider';
 import { handleApiError } from '../utils/errors';
-import { ProfileInput } from '../components/ProfileInput';
-import { ContactInfoInput, ContactInfo } from '../components/ContactInfoInput';
-import { FileUpload } from '../components/FileUpload';
+import { ContactInfo } from '../components/ContactInfoInput';
 import { JobDescriptionInput } from '../components/JobDescriptionInput';
 import { MatchResult } from '../components/MatchResult';
-import { ChatInterface } from '../components/ChatInterface';
+import { CollapsibleChat } from '../components/CollapsibleChat';
+import { InfoModal } from '../components/InfoModal';
+import { ProfileStatusBar } from '../components/ProfileStatusBar';
+import { ProfileEditModal } from '../components/ProfileEditModal';
+import { AnimateOnScroll, SuccessCelebration, AnimatedButton } from '../utils/animations';
+import { AnalysisProgress } from '../components/ProgressIndicators';
+import { useKeyboardShortcuts, createAppShortcuts } from '../hooks/useKeyboardShortcuts';
+import { ConfettiCelebration, ShortcutHint } from '../components/MicroFeedback';
 import { GeminiService } from '../services/geminiService';
 import { ChatMessage, MatchResult as MatchResultType, CVData, JobDescription, UserProfile } from '../types';
 import { saveToStorage, loadFromStorage, removeFromStorage, STORAGE_KEYS } from '../utils/storage';
@@ -25,7 +30,14 @@ export default function HomePage() {
   const [matchResult, setMatchResult] = useState<MatchResultType | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisStep, setAnalysisStep] = useState<'analyzing' | 'matching' | 'generating' | 'complete'>('analyzing');
+  const [analysisProgress, setAnalysisProgress] = useState(0);
   const [isChatLoading, setIsChatLoading] = useState(false);
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+  const [isProfileEditModalOpen, setIsProfileEditModalOpen] = useState(false);
+  const [isChatExpanded, setIsChatExpanded] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [showShortcutHint] = useState(false);
   const [geminiService] = useState(() => new GeminiService());
   const toast = useToast();
 
@@ -141,19 +153,49 @@ export default function HomePage() {
     }
 
     setIsAnalyzing(true);
+    setAnalysisStep('analyzing');
+    setAnalysisProgress(0);
     toast.clear();
     try { trackEvent('start_analysis'); } catch {}
 
     try {
+      // Step 1: Initialize chat (analyzing)
+      setAnalysisProgress(20);
       await initializeChat();
+      
+      // Step 2: Match analysis (matching)
+      setAnalysisStep('matching');
+      setAnalysisProgress(50);
+      
+      // Simulate realistic analysis time with progress updates
+      await new Promise(resolve => setTimeout(resolve, 800));
+      setAnalysisProgress(70);
+      
+      // Step 3: Generate results (generating)
+      setAnalysisStep('generating');
+      setAnalysisProgress(85);
+      
       const result = await geminiService.checkMatch();
+      
+      // Step 4: Complete
+      setAnalysisStep('complete');
+      setAnalysisProgress(100);
+      
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       try { trackEvent('job_match_done', { score: result.decision === 'yes' ? 1 : 0 }); } catch {}
       setMatchResult(result);
+      
+      // Show celebration for successful matches
+      if (result.decision === 'yes') {
+        setShowCelebration(true);
+      }
     } catch (err) {
       const { messageKey, params } = handleApiError(err);
       toast.error(messageKey, params);
     } finally {
       setIsAnalyzing(false);
+      setAnalysisProgress(0);
     }
   }, [userProfile, cvData, jobDescription, toast, initializeChat, geminiService]);
 
@@ -207,69 +249,49 @@ export default function HomePage() {
     }
   }, [userProfile, contactInfo, cvData, jobDescription, toast, chatMessages.length, initializeChat, geminiService]);
 
-
+  const handleClearAllProfile = () => {
+    setUserProfile(null);
+    setContactInfo(null);
+    setCvData(null);
+    removeFromStorage(STORAGE_KEYS.USER_PROFILE);
+    removeFromStorage(STORAGE_KEYS.CONTACT_INFO);
+    removeFromStorage(STORAGE_KEYS.CV_DATA);
+    resetAnalysis();
+  };
 
   const canAnalyze = userProfile && contactInfo && cvData && jobDescription && !isAnalyzing;
   const canChat = userProfile && contactInfo && cvData && jobDescription;
 
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    shortcuts: createAppShortcuts({
+      analyze: canAnalyze ? handleCheckMatch : undefined,
+      editProfile: () => setIsProfileEditModalOpen(true),
+      expandChat: canChat ? () => setIsChatExpanded(!isChatExpanded) : undefined,
+      showHelp: () => setIsInfoModalOpen(true),
+    }),
+    enabled: true
+  });
+
   return (
     <div className="min-h-screen bg-gray-50 pb-8">
-      <Header />
+      <Header onInfoClick={() => setIsInfoModalOpen(true)} />
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        {/* Main App Interface */}
-        <div id="get-started" className="bg-white rounded-lg shadow-sm p-6 space-y-6">
-          {/* Profile Input */}
-          <div>
-            <ProfileInput
-              profile={userProfile?.content || ''}
-              onProfileSave={handleProfileSave}
-              onClear={() => {
-                setUserProfile(null);
-                removeFromStorage(STORAGE_KEYS.USER_PROFILE);
-                resetAnalysis();
-              }}
-            />
-          </div>
+        {/* Profile Status Bar */}
+        <AnimateOnScroll animation="slideInFromTop" delay="delay75">
+          <ProfileStatusBar
+            userProfile={userProfile}
+            contactInfo={contactInfo}
+            cvData={cvData}
+            onEdit={() => setIsProfileEditModalOpen(true)}
+            onClear={handleClearAllProfile}
+          />
+        </AnimateOnScroll>
 
-          {/* Contact Info Input */}
-          <div>
-            <ContactInfoInput
-              contactInfo={contactInfo}
-              onContactInfoSave={handleContactInfoSave}
-              onClear={() => {
-                setContactInfo(null);
-                removeFromStorage(STORAGE_KEYS.CONTACT_INFO);
-              }}
-            />
-          </div>
-
-          {/* CV Upload */}
-          <div>
-            <div className="flex items-center space-x-2 mb-3">
-              <FileText className="w-5 h-5 text-blue-600" />
-              <span className="text-lg font-medium text-gray-900">{t('yourCV')}</span>
-              {cvData && (
-              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                  {t('source.pasted')}: {cvData.fileName}
-                </span>
-              )}
-            </div>
-            <FileUpload
-              label={t('addYourCV')}
-              onFileProcessed={handleCVUpload}
-              currentFile={cvData?.fileName}
-              compact={true}
-              onClear={() => {
-                setCvData(null);
-                removeFromStorage(STORAGE_KEYS.CV_DATA);
-                resetAnalysis();
-              }}
-            />
-          </div>
-
-          {/* Job Description - Always Visible */}
-          <div>
+        {/* Hero Job Description Section */}
+        <AnimateOnScroll animation="fadeInUp" delay="delay150">
+          <div className="bg-white rounded-lg shadow-sm p-6">
             <JobDescriptionInput
               value={jobDescription?.content || ''}
               onChange={handleJobDescriptionChange}
@@ -280,102 +302,118 @@ export default function HomePage() {
               }}
             />
           </div>
+        </AnimateOnScroll>
 
-          {/* Analysis Button */}
+        {/* Primary Analysis Button */}
+        <AnimateOnScroll animation="fadeInUp" delay="delay300">
           <div className="text-center">
-            <button
+            <AnimatedButton
               onClick={handleCheckMatch}
               disabled={!canAnalyze}
-              className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors inline-flex items-center space-x-2"
+              isLoading={isAnalyzing}
+              size="lg"
+              className="text-lg px-8 py-4"
             >
               {isAnalyzing ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  <span>{t('analyzingMatch')}</span>
-                </>
+                <span>{t('analyzingMatch')}</span>
               ) : (
                 <>
-                  <Zap className="w-4 h-4" />
+                  <Zap className="w-5 h-5 mr-2" />
                   <span>{t('checkJobMatch')}</span>
                 </>
               )}
-            </button>
+            </AnimatedButton>
           </div>
+        </AnimateOnScroll>
 
-          {/* Match Result - Right Below Button */}
-          {matchResult && (
-            <div className="mt-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Match Analysis</h3>
-              <MatchResult result={matchResult} />
-            </div>
-          )}
-        </div>
-
-        {/* AI Disclaimer */}
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-6">
-            <h3 className="font-semibold text-amber-900 mb-3 flex items-center">
-            <AlertCircle className="w-5 h-5 mr-2" />
-            {t('disclaimerTitle')}
-          </h3>
-          <div className="space-y-3 text-amber-800 text-sm">
-            <p>
-              <strong>{t('disclaimer.aiGeneratedTitle')}</strong> {t('disclaimer.aiGeneratedBody')}
-            </p>
-            <p>
-              <strong>{t('disclaimer.responsibilityTitle')}</strong> {t('disclaimer.responsibilityBody')}
-            </p>
-            <p>
-              <strong>{t('disclaimer.privacyTitle')}</strong> {t('disclaimer.privacyBody')}
-            </p>
-            <p>
-              <strong>{t('disclaimer.liabilityTitle')}</strong> {t('disclaimer.liabilityBody')}
-            </p>
-          </div>
-        </div>
-
-        {/* Chat Interface */}
-        {canChat && (
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('aiAdvisor')}</h3>
-            <ChatInterface
-              messages={chatMessages}
-              onSendMessage={handleSendMessage}
-              isLoading={isChatLoading}
-              disabled={!canChat}
-              jobDescription={jobDescription}
+        {/* Analysis Progress */}
+        {isAnalyzing && (
+          <AnimateOnScroll animation="slideInFromBottom" triggerOnce={false}>
+            <AnalysisProgress 
+              currentStep={analysisStep}
+              progress={analysisProgress}
             />
-          </div>
+          </AnimateOnScroll>
         )}
 
-        {/* Instructions */}
-        <div className="bg-blue-50 rounded-lg p-6">
-          <h3 className="font-semibold text-blue-900 mb-3">{t('howToDetailed.stepsTitle')}</h3>
-          <ol className="list-decimal list-inside space-y-2 text-blue-800 text-sm">
-            <li>{t('howToDetailed.step1')}</li>
-            <li>{t('howToDetailed.step2')}</li>
-            <li>{t('howToDetailed.step3')}</li>
-            <li>{t('howToDetailed.step4')}</li>
-            <li>{t('howToDetailed.step5')}</li>
-            <li>{t('howToDetailed.step6')}</li>
-          </ol>
-          <div className="mt-3 p-3 bg-blue-100 rounded-lg">
-            <p className="text-xs text-blue-800">
-              <strong>{t('howToDetailed.bestPracticeTitle')}</strong> {t('howToDetailed.bestPracticeBody')}
-            </p>
-          </div>
-          <div className="mt-3 p-3 bg-green-100 rounded-lg border border-green-200">
-            <h4 className="font-semibold text-green-800 mb-2">{t('howToDetailed.whyTextTitle')}</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-green-700">
-              <div>{t('howToDetailed.whyTextBullet1')}</div>
-              <div>{t('howToDetailed.whyTextBullet2')}</div>
-              <div>{t('howToDetailed.whyTextBullet3')}</div>
-              <div>{t('howToDetailed.whyTextBullet4')}</div>
-            </div>
-          </div>
-        </div>
+        {/* Match Result */}
+        {matchResult && (
+          <AnimateOnScroll animation="slideInFromBottom" triggerOnce={false}>
+            <SuccessCelebration 
+              show={matchResult.decision === 'yes'} 
+              type="bounce"
+            >
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('match.analysisTitle')}</h3>
+                <MatchResult 
+                  result={matchResult} 
+                  onSendMessage={canChat ? handleSendMessage : undefined}
+                  onExpandChat={() => setIsChatExpanded(true)}
+                />
+              </div>
+            </SuccessCelebration>
+          </AnimateOnScroll>
+        )}
+
+        {/* Collapsible Chat Interface */}
+        <AnimateOnScroll animation="fadeInUp" delay="delay450">
+          <CollapsibleChat
+            messages={chatMessages}
+            onSendMessage={handleSendMessage}
+            isLoading={isChatLoading}
+            disabled={!canChat}
+            jobDescription={jobDescription}
+            isExpanded={isChatExpanded}
+            onExpandedChange={setIsChatExpanded}
+          />
+        </AnimateOnScroll>
       </main>
 
       <Footer />
+      
+      {/* Confetti celebration for successful matches */}
+      <ConfettiCelebration show={showCelebration} />
+      
+      {/* Keyboard shortcut hint */}
+      <div className="fixed bottom-4 right-4 z-40">
+        <ShortcutHint 
+          shortcut="Ctrl+Enter"
+          description="Quick analyze"
+          show={Boolean(showShortcutHint && canAnalyze && jobDescription?.content)}
+        />
+      </div>
+      
+      {/* Info Modal */}
+      <InfoModal 
+        isOpen={isInfoModalOpen} 
+        onClose={() => setIsInfoModalOpen(false)} 
+      />
+      
+      {/* Profile Edit Modal */}
+      <ProfileEditModal
+        isOpen={isProfileEditModalOpen}
+        onClose={() => setIsProfileEditModalOpen(false)}
+        userProfile={userProfile}
+        contactInfo={contactInfo}
+        cvData={cvData}
+        onProfileSave={handleProfileSave}
+        onContactInfoSave={handleContactInfoSave}
+        onCVUpload={handleCVUpload}
+        onClearProfile={() => {
+          setUserProfile(null);
+          removeFromStorage(STORAGE_KEYS.USER_PROFILE);
+          resetAnalysis();
+        }}
+        onClearContactInfo={() => {
+          setContactInfo(null);
+          removeFromStorage(STORAGE_KEYS.CONTACT_INFO);
+        }}
+        onClearCV={() => {
+          setCvData(null);
+          removeFromStorage(STORAGE_KEYS.CV_DATA);
+          resetAnalysis();
+        }}
+      />
     </div>
   );
 }

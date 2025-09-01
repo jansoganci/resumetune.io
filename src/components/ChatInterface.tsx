@@ -109,36 +109,22 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         <h3 className="font-medium text-gray-800">{t('chat.title')}</h3>
       </div>
 
-      {/* Quick Actions */}
-      {!disabled && (
-        <div className={`p-3 border-b border-gray-100 bg-gray-50 ${messages.length > 0 ? 'py-2' : ''}`}>
-          <p className={`text-xs text-gray-600 mb-2 ${messages.length > 0 ? 'mb-1' : ''}`}>{t('chat.quickActions')}</p>
+      {/* Secondary Quick Actions - Focused on analysis questions */}
+      {!disabled && messages.length === 0 && (
+        <div className="p-3 border-b border-gray-100 bg-gray-50">
+          <p className="text-xs text-gray-600 mb-2">{t('chat.analysisActions')}</p>
           <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => handleQuickAction(qaCover)}
-              disabled={isLoading}
-              className={`px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 disabled:opacity-50 transition-colors ${messages.length > 0 ? 'px-2 py-0.5' : ''}`}
-            >
-              📝 {t('chat.qaCover')}
-            </button>
-            <button
-              onClick={() => handleQuickAction(qaResume)}
-              disabled={isLoading}
-              className={`px-3 py-1 text-xs bg-purple-100 text-purple-700 rounded-full hover:bg-purple-200 disabled:opacity-50 transition-colors ${messages.length > 0 ? 'px-2 py-0.5' : ''}`}
-            >
-              🎯 {t('chat.qaResume')}
-            </button>
             <button
               onClick={() => handleQuickAction(qaReqs)}
               disabled={isLoading}
-              className={`px-3 py-1 text-xs bg-green-100 text-green-700 rounded-full hover:bg-green-200 disabled:opacity-50 transition-colors ${messages.length > 0 ? 'px-2 py-0.5' : ''}`}
+              className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-full hover:bg-green-200 disabled:opacity-50 transition-colors"
             >
               📋 {t('chat.qaReqs')}
             </button>
             <button
               onClick={() => handleQuickAction(qaSkills)}
               disabled={isLoading}
-              className={`px-3 py-1 text-xs bg-purple-100 text-purple-700 rounded-full hover:bg-purple-200 disabled:opacity-50 transition-colors ${messages.length > 0 ? 'px-2 py-0.5' : ''}`}
+              className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 disabled:opacity-50 transition-colors"
             >
               📊 {t('chat.qaSkills')}
             </button>

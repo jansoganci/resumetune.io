@@ -19,6 +19,7 @@ const common = {
   chat: {
     title: 'Chat with AI Recruiter',
     quickActions: 'Quick actions:',
+    analysisActions: 'Ask detailed questions:',
     qaCover: 'Generate Cover Letter',
     qaResume: 'Optimize Resume',
     qaReqs: 'Key Requirements',
@@ -28,7 +29,10 @@ const common = {
     exportPDF: 'PDF',
     exportDOCX: 'DOCX',
     inputPlaceholderReady: 'Ask about the position, your fit, or get advice...',
-    inputPlaceholderDisabled: 'Add profile, contact info, CV and job description first...'
+    inputPlaceholderDisabled: 'Add profile, contact info, CV and job description first...',
+    messages: 'messages',
+    completeProfile: 'Complete profile first',
+    ready: 'Ready'
   },
   fileUpload: {
     pasteText: 'Paste Text',
@@ -70,9 +74,17 @@ const common = {
   },
   profile: {
     label: 'Your Profile',
+    title: 'Profile',
     addPrompt: 'Add your profile information',
     save: 'Save Profile',
     cancel: 'Cancel',
+    edit: 'Edit',
+    clear: 'Clear',
+    done: 'Done',
+    editTitle: 'Edit Profile Information',
+    allComplete: 'All information complete - ready to analyze jobs',
+    completeSetup: 'Complete setup',
+    completed: 'completed',
     errorRequired: 'Please enter your profile information',
     errorMin: 'Please provide more details about yourself (at least 50 characters)',
     placeholder: 'Tell us about yourself...\n\nExample:\n- [Your nationality], [age], [gender], [your degree] ([your university])\n- [X]+ years [your expertise areas] experience\n- Fluent in [languages], no [other languages]\n- In [current city] or willing to relocate\n- Minimum salary: [amount] [currency]/month\n- Target roles: [role types you want]\n- Prefers [company types you like]',
@@ -104,11 +116,16 @@ const common = {
     },
     requiredFields: '* Required fields'
   },
+  contactInfo: {
+    title: 'Contact Info'
+  },
   match: {
     title: 'Match Analysis',
+    analysisTitle: 'Match Analysis',
     found: 'Match Found!',
     notFound: 'Not a Match',
-    analyzedAt: 'Analyzed at'
+    analyzedAt: 'Analyzed at',
+    nextSteps: 'Ready to proceed? Generate your documents:'
   },
   errors: {
     networkError: 'Network error. Please check your connection and try again.',
