@@ -61,7 +61,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .select('ai_calls_count')
         .eq('user_id', userId)
         .eq('usage_date', today)
-        .single();
+        .maybeSingle();
       
       todayUsage = usageResult.data?.ai_calls_count || 0;
       
@@ -86,7 +86,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .select('ai_calls_count')
           .eq('user_id', userId)
           .eq('usage_date', today)
-          .single(),
+          .maybeSingle(),
         
         // Kullanıcı bilgileri (krediler only - subscription fields don't exist yet)
         supabase

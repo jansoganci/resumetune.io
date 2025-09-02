@@ -27,7 +27,7 @@ const QUALITY_THRESHOLDS = {
   achievementIntegration: 0.6,
   professionalTone: 0.7,
   contentRelevance: 0.6,
-  overall: 0.65  // Lowered from 0.75 to reduce retries
+  overall: 0.75  // Align with README threshold
 };
 
 // Required elements for format compliance
@@ -57,6 +57,10 @@ export function validateCoverLetterQuality(
   cvData: CVData,
   jobDescription: JobDescription
 ): QualityValidationResult {
+  const phase2 = (import.meta as any).env?.VITE_COVER_LETTER_PHASE2_PROMPT === '1' ||
+                 (import.meta as any).env?.VITE_COVER_LETTER_PHASE2_PROMPT === 'true' ||
+                 (import.meta as any).env?.VITE_COVER_LETTER_PHASE2_PROMPT === true;
+
   const metrics: QualityMetrics = {
     formatCompliance: checkFormatCompliance(content, contactInfo),
     personalizationScore: checkPersonalization(content, contactInfo, jobDescription),
@@ -69,7 +73,15 @@ export function validateCoverLetterQuality(
   // Calculate weighted overall score
   metrics.overallScore = calculateOverallScore(metrics);
 
-  const shouldRetry = metrics.overallScore < QUALITY_THRESHOLDS.overall;
+  // Phase 2: enforce stricter gating on placeholders and achievements
+  let shouldRetry = metrics.overallScore < QUALITY_THRESHOLDS.overall;
+  if (phase2) {
+    const hasPlaceholders = /\[[^\]]+\]/.test(content);
+    const hasFewerThanTwoAchievements = (content.match(/\d+%|\$\d+|\d+\+/g)?.length || 0) < 2;
+    if (hasPlaceholders || hasFewerThanTwoAchievements) {
+      shouldRetry = true;
+    }
+  }
   const weaknesses = identifyWeaknesses(metrics);
   const improvements = generateImprovements(metrics, weaknesses);
 
@@ -194,6 +206,16 @@ function checkProfessionalTone(content: string): number {
   const longSentences = sentences.filter(s => s.split(' ').length > 25).length;
   if (longSentences > 2) {
     score -= 0.1;
+  }
+
+  // Phase 2: light penalty for perk/benefit emphasis to discourage applicant-centric framing
+  const phase2 = (import.meta as any).env?.VITE_COVER_LETTER_PHASE2_PROMPT === '1' ||
+                 (import.meta as any).env?.VITE_COVER_LETTER_PHASE2_PROMPT === 'true' ||
+                 (import.meta as any).env?.VITE_COVER_LETTER_PHASE2_PROMPT === true;
+  if (phase2) {
+    const perkTerms = ['benefits', 'discounted flights', 'health insurance', 'perks', 'wellness', 'gym'];
+    const perkHits = perkTerms.filter(t => contentLower.includes(t)).length;
+    if (perkHits > 0) score -= Math.min(0.1, 0.03 * perkHits);
   }
 
   return Math.max(0, Math.min(score, 1.0));

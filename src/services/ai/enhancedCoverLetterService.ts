@@ -4,7 +4,7 @@
 import { COVER_LETTER_SYSTEM_PROMPT, COVER_LETTER_JSON_INSTRUCTION } from './prompts/coverLetterPrompt';
 import { CVData, JobDescription, UserProfile } from '../../types';
 import { ContactInfo } from '../../components/ContactInfoInput';
-import { formatCompleteCoverLetter } from '../../utils/textUtils';
+import { formatCompleteCoverLetter, stripKnownPlaceholders } from '../../utils/textUtils';
 import { sendAiMessage, AiHistoryItem } from './aiProxyClient';
 import { AppError, ErrorCode, mapUnknownError } from '../../utils/errors';
 import { checkAndConsumeLimit, getErrorMessage } from '../creditService';
@@ -20,6 +20,10 @@ import {
   QualityValidationResult,
   getQualityInsights 
 } from './coverLetterQuality';
+import { buildConsistencyPrompt, enhancePromptWithContext, buildStructuredPrompt } from './prompts/promptBuilders';
+import { buildCoverLetterContext } from './context/coverLetterContext';
+import { assembleCoverLetter } from './assemblers/coverLetterAssembler';
+import type { CoverLetterContext } from '../../types/coverLetter';
 
 interface GenerationAttempt {
   content: string;
@@ -32,6 +36,7 @@ export class EnhancedCoverLetterService {
   private cvData: CVData | null = null;
   private jobDescription: JobDescription | null = null;
   private userProfile: UserProfile | null = null;
+  private phase2Context: CoverLetterContext | null = null;
 
   async initializeChat(cvData: CVData, jobDescription: JobDescription, userProfile?: UserProfile) {
     this.cvData = cvData;
@@ -60,24 +65,24 @@ You now have the candidate's ${userProfile ? 'profile, ' : ''}CV and the job des
     ];
   }
 
-  async generateCoverLetter(contactInfo: ContactInfo): Promise<string> {
+  async generateCoverLetter(contactInfo: ContactInfo, options?: { skipCreditCheck?: boolean }): Promise<string> {
     if (!this.history.length || !this.cvData || !this.jobDescription) {
       throw new Error('Cover letter service not initialized. Please try again.');
     }
 
-    // Credit control (keeping existing logic)
-    const creditCheck = await checkAndConsumeLimit('generate_cover_letter');
-    
-    if (!creditCheck.allowed) {
-      const errorMessage = getErrorMessage(creditCheck);
-      throw new AppError(ErrorCode.QuotaExceeded, errorMessage);
+    // Credit control (allow orchestrator to handle once)
+    if (!options?.skipCreditCheck) {
+      const creditCheck = await checkAndConsumeLimit('generate_cover_letter');
+      if (!creditCheck.allowed) {
+        const errorMessage = getErrorMessage(creditCheck);
+        throw new AppError(ErrorCode.QuotaExceeded, errorMessage);
+      }
+      console.log('✅ Credit check passed for cover letter generation:', {
+        planType: creditCheck.planType,
+        creditsRemaining: creditCheck.currentCredits,
+        dailyUsage: creditCheck.dailyUsage
+      });
     }
-
-    console.log('✅ Credit check passed for cover letter generation:', {
-      planType: creditCheck.planType,
-      creditsRemaining: creditCheck.currentCredits,
-      dailyUsage: creditCheck.dailyUsage
-    });
 
     // Debug logs (keeping existing privacy protection)
     if (import.meta.env.DEV) {
@@ -103,14 +108,35 @@ You now have the candidate's ${userProfile ? 'profile, ' : ''}CV and the job des
   private async generateWithQualityAssurance(contactInfo: ContactInfo): Promise<string> {
     const maxAttempts = 3;
     const attempts: GenerationAttempt[] = [];
+    const usePhase2 = this.shouldUsePhase2Prompt();
+
+    if (usePhase2) {
+      this.phase2Context = buildCoverLetterContext({
+        cvData: this.cvData!,
+        jobDescription: this.jobDescription!,
+        contactInfo,
+        tone: 'professional',
+        locale: 'en-US'
+      });
+      if (import.meta.env.DEV) {
+        console.log('Phase2 context built:', {
+          company: this.phase2Context.company,
+          position: this.phase2Context.position,
+          reqs: this.phase2Context.requirements?.length,
+          ach: this.phase2Context.achievements?.length
+        });
+      }
+    }
     
     for (let attemptNumber = 1; attemptNumber <= maxAttempts; attemptNumber++) {
       try {
         // Select optimal examples for this attempt
         const examples = this.selectOptimalExamples(contactInfo, attemptNumber);
         
-        // Build enhanced prompt with few-shot examples
-        const prompt = this.buildFewShotPrompt(examples, contactInfo, attemptNumber);
+        // Build prompt: Phase 2 (flagged) or Phase 1 default
+        const prompt = usePhase2
+          ? this.buildPhase2Prompt(examples, contactInfo)
+          : this.buildFewShotPrompt(examples, contactInfo, attemptNumber);
         
         // Generate cover letter
         const rawContent = await sendAiMessage(this.history, prompt);
@@ -140,11 +166,16 @@ You now have the candidate's ${userProfile ? 'profile, ' : ''}CV and the job des
         // Log quality insights in dev
         if (import.meta.env.DEV) {
           console.log(`Attempt ${attemptNumber} Quality:`, getQualityInsights(qualityResult));
+          if (qualityResult.weaknesses?.length) {
+            console.log(`Attempt ${attemptNumber} Weaknesses:`, qualityResult.weaknesses.join(', '));
+          }
         }
         
         // Accept if quality threshold met
         if (!qualityResult.shouldRetry) {
-          const formattedCoverLetter = formatCompleteCoverLetter(cleanContent, contactInfo);
+          const formattedCoverLetter = usePhase2 && this.phase2Context
+            ? assembleCoverLetter(this.phase2Context, cleanContent)
+            : formatCompleteCoverLetter(cleanContent, contactInfo);
           return this.formatSuccessResponse(formattedCoverLetter, qualityResult);
         }
         
@@ -159,17 +190,46 @@ You now have the candidate's ${userProfile ? 'profile, ' : ''}CV and the job des
       if (attemptNumber < maxAttempts) {
         console.log(`Waiting 2 seconds before retry attempt ${attemptNumber + 1}...`);
         await new Promise(resolve => setTimeout(resolve, 2000));
+      } else {
+        if (import.meta.env.DEV) {
+          console.log('Final attempt completed; selecting best attempt to return.');
+        }
       }
     }
     
     // If all attempts had quality issues, return the best one
     const bestAttempt = this.selectBestAttempt(attempts);
     if (bestAttempt) {
-      const formattedCoverLetter = formatCompleteCoverLetter(bestAttempt.content, contactInfo);
+      const formattedCoverLetter = usePhase2 && this.phase2Context
+        ? assembleCoverLetter(this.phase2Context, bestAttempt.content)
+        : formatCompleteCoverLetter(bestAttempt.content, contactInfo);
       return this.formatSuccessResponse(formattedCoverLetter, bestAttempt.qualityResult);
     }
     
     throw new Error('Failed to generate acceptable cover letter quality after multiple attempts');
+  }
+
+  private shouldUsePhase2Prompt(): boolean {
+    // Vite exposes env vars prefixed with VITE_. Accept '1', 'true', true
+    const flag = (import.meta as any).env?.VITE_COVER_LETTER_PHASE2_PROMPT;
+    return flag === '1' || flag === 'true' || flag === true;
+  }
+
+  private buildPhase2Prompt(examples: CoverLetterExample[], _contactInfo: ContactInfo): string {
+    // Use structured context and minimal examples to build the prompt
+    const tone = 'professional';
+    const conciseExamples = examples.slice(0, 2);
+    if (!this.phase2Context) {
+      // Fallback: build a temporary context (should normally be set by caller)
+      this.phase2Context = buildCoverLetterContext({
+        cvData: this.cvData!,
+        jobDescription: this.jobDescription!,
+        contactInfo: _contactInfo,
+        tone,
+        locale: 'en-US'
+      });
+    }
+    return buildStructuredPrompt(conciseExamples, this.phase2Context);
   }
 
   private selectOptimalExamples(contactInfo: ContactInfo, attemptNumber: number): CoverLetterExample[] {
@@ -186,16 +246,26 @@ You now have the candidate's ${userProfile ? 'profile, ' : ''}CV and the job des
       });
     }
     
-    // Get best matching examples (2-3 examples)
-    let examples = getBestMatchingExamples(detectedIndustry, detectedLevel, preferredTone, 3);
-    
-    // For retry attempts, try different example combinations
-    if (attemptNumber > 1 && examples.length > 3) {
-      const offset = (attemptNumber - 1) * 2;
-      examples = [...examples.slice(offset), ...examples.slice(0, offset)].slice(0, 3);
+    // Build a pool of top matches to allow rotation across attempts
+    const pool = getBestMatchingExamples(detectedIndustry, detectedLevel, preferredTone, 9);
+
+    if (pool.length <= 3) {
+      if (import.meta.env.DEV) {
+        console.log('Selected examples:', pool.map(p => p.id));
+      }
+      return pool;
     }
-    
-    return examples;
+
+    // Rotate selection deterministically per attempt
+    const start = ((attemptNumber - 1) * 3) % pool.length;
+    const selected: CoverLetterExample[] = [];
+    for (let i = 0; i < 3; i++) {
+      selected.push(pool[(start + i) % pool.length]);
+    }
+    if (import.meta.env.DEV) {
+      console.log('Selected examples:', selected.map(p => p.id));
+    }
+    return selected;
   }
 
   private buildFewShotPrompt(examples: CoverLetterExample[], contactInfo: ContactInfo, attemptNumber: number): string {
@@ -275,6 +345,11 @@ ${COVER_LETTER_JSON_INSTRUCTION}`;
     } catch {
       content = rawContent;
     }
+    // Phase 2: extra cleanup of placeholders (flag-gated)
+    const flag = (import.meta as any).env?.VITE_COVER_LETTER_PHASE2_PROMPT;
+    if (flag === '1' || flag === 'true' || flag === true) {
+      content = stripKnownPlaceholders(content);
+    }
 
     return content;
   }
@@ -348,5 +423,6 @@ ${formattedCoverLetter}
     this.cvData = null;
     this.jobDescription = null;
     this.userProfile = null;
+    this.phase2Context = null;
   }
 }

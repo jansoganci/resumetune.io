@@ -5,6 +5,7 @@ import { useToast } from './ToastProvider';
 import { ChatMessage } from '../types';
 import ReactMarkdown from 'react-markdown';
 import { exportToPDF, exportToDocx } from '../utils/documentExport';
+import { inferKeyFocus, inferSeniority, SeniorityLevel } from '../utils/smartSuggestions';
 import { validateDocumentContent } from '../utils/textUtils';
 import { trackEvent } from '../utils/analytics';
 
@@ -27,6 +28,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const toast = useToast();
   const [inputMessage, setInputMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  // Phase 4: inline adjust/regenerate state
+  const [adjustForId, setAdjustForId] = useState<string | null>(null);
+  const [adjustRole, setAdjustRole] = useState('');
+  const [adjustLevel, setAdjustLevel] = useState<SeniorityLevel | ''>('');
+  const [adjustFocus, setAdjustFocus] = useState('');
 
   const scrollToBottom = () => {
     // Only scroll within the chat container, not the entire page
@@ -98,6 +104,28 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   const isOptimizedResume = (content: string) => {
     return validateDocumentContent(content, 'resume');
+  };
+
+  // Prefill adjust panel from Job Description
+  const openAdjustPanel = (messageId: string) => {
+    const preRole = jobDescription?.jobTitle || '';
+    const preLevel = inferSeniority(undefined, jobDescription?.jobTitle) || '';
+    // Prefer JD full content for focus inference if available (passed via parent component's jobDescription is title/company only)
+    const preFocus = inferKeyFocus(jobDescription?.jobTitle || '') || '';
+    setAdjustRole(preRole);
+    setAdjustLevel(preLevel as SeniorityLevel | '');
+    setAdjustFocus(preFocus);
+    setAdjustForId(messageId);
+  };
+
+  const handleAdjustSubmit = () => {
+    const payload = {
+      targetRole: adjustRole || undefined,
+      experienceLevel: adjustLevel || undefined,
+      keyFocus: adjustFocus || undefined
+    };
+    onSendMessage(`__optimize_specs__:${JSON.stringify(payload)}`);
+    setAdjustForId(null);
   };
 
 
@@ -183,6 +211,75 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                               <FileText className="w-3 h-3" />
                               <span>{t('chat.exportDOCX')}</span>
                             </button>
+                            {isOptimizedResume(message.content) && (
+                              <button
+                                onClick={() => openAdjustPanel(message.id)}
+                                className="px-3 py-1 text-xs bg-purple-100 text-purple-700 rounded-full hover:bg-purple-200 transition-colors"
+                                disabled={isLoading}
+                              >
+                                ✏️ Adjust & Regenerate
+                              </button>
+                            )}
+                          </div>
+                        )}
+                        {isOptimizedResume(message.content) && adjustForId === message.id && (
+                          <div className="mt-3 p-3 border border-gray-200 rounded-lg bg-gray-50">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                              <div>
+                                <label className="block text-xs text-gray-600 mb-1">Target Role</label>
+                                <input
+                                  type="text"
+                                  value={adjustRole}
+                                  onChange={(e) => setAdjustRole(e.target.value)}
+                                  placeholder={jobDescription?.jobTitle || 'e.g., Senior Backend Engineer'}
+                                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs text-gray-600 mb-1">Experience Level</label>
+                                <select
+                                  value={adjustLevel}
+                                  onChange={(e) => setAdjustLevel(e.target.value as SeniorityLevel | '')}
+                                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded bg-white"
+                                >
+                                  <option value="">Infer</option>
+                                  <option>Intern</option>
+                                  <option>Junior</option>
+                                  <option>Mid</option>
+                                  <option>Senior</option>
+                                  <option>Lead</option>
+                                  <option>Staff</option>
+                                  <option>Principal</option>
+                                  <option>Manager</option>
+                                  <option>Director</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-xs text-gray-600 mb-1">Key Focus</label>
+                                <input
+                                  type="text"
+                                  value={adjustFocus}
+                                  onChange={(e) => setAdjustFocus(e.target.value)}
+                                  placeholder="e.g., Leadership, Automation, Analytics"
+                                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                                />
+                              </div>
+                            </div>
+                            <div className="mt-2 flex space-x-2">
+                              <button
+                                onClick={handleAdjustSubmit}
+                                className="px-3 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700"
+                                disabled={isLoading}
+                              >
+                                Regenerate
+                              </button>
+                              <button
+                                onClick={() => setAdjustForId(null)}
+                                className="px-3 py-1 text-xs bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+                              >
+                                Cancel
+                              </button>
+                            </div>
                           </div>
                         )}
                       </div>

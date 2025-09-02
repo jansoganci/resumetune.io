@@ -87,3 +87,47 @@ export const parseJobDescription = (content: string): ParsedJobInfo => {
     companyName
   };
 };
+
+// Phase 2 helpers (non-breaking): simple extractors building on parseJobDescription
+export const extractCompanyName = (content: string): string | null => {
+  const parsed = parseJobDescription(content || '');
+  if (parsed.companyName) return parsed.companyName;
+  // Fallback patterns inline for robustness
+  const m = (content || '').match(/(?:company|organization|employer):\s*([^\n]+)/i) ||
+            (content || '').match(/\bat\s+([A-Z][\w\s&.,-]+)/i);
+  return m?.[1]?.trim() || null;
+};
+
+export const extractPositionTitle = (content: string): string | null => {
+  const parsed = parseJobDescription(content || '');
+  if (parsed.jobTitle) return parsed.jobTitle;
+  const m = (content || '').match(/(?:job title|position|role):\s*([^\n]+)/i) ||
+            (content || '').match(/\bfor\s+the\s+([A-Z][\w\s&.,-]+)(?:\s+position|\s+role)/i);
+  return m?.[1]?.trim() || null;
+};
+
+export const extractTopRequirements = (content: string): string[] => {
+  const text = (content || '').toLowerCase();
+  // Naive keyphrase extraction: lines under Requirements/Qualifications or bullet-like lines
+  const lines = content.split(/\n+/).map(l => l.trim());
+  const reqStart = lines.findIndex(l => /requirements|qualifications|responsibilities/i.test(l));
+  const candidates: string[] = [];
+  for (let i = reqStart >= 0 ? reqStart + 1 : 0; i < lines.length && candidates.length < 8; i++) {
+    const line = lines[i];
+    if (!line) continue;
+    if (/^[-*•]/.test(line) || line.length > 20) {
+      const clean = line.replace(/^[-*•]\s*/, '').replace(/[:.;]$/,'').trim();
+      if (clean && !/about\s+us|benefits|company|culture/i.test(clean)) {
+        candidates.push(clean);
+      }
+    }
+    if (reqStart >= 0 && /^\s*$/.test(line)) break; // stop at blank after section
+  }
+  // Fallback: extract nouns/skills-like tokens
+  if (candidates.length === 0) {
+    const skills = Array.from(new Set((content.match(/\b[A-Za-z]{3,}\b/g) || [])
+      .filter(w => !['with','and','for','the','this','that','will','team','work','role','your','our','you','have','are','from','into'].includes(w.toLowerCase()))));
+    return skills.slice(0, 3);
+  }
+  return candidates.slice(0, 5);
+};

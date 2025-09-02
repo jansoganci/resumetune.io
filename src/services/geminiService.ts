@@ -5,6 +5,8 @@ import { ResumeOptimizerService } from './ai/resumeOptimizerService';
 import { ChatMessage, MatchResult, CVData, JobDescription, UserProfile } from '../types';
 import { ContactInfo } from '../components/ContactInfoInput';
 import { AppError, ErrorCode, mapUnknownError } from '../utils/errors';
+import { checkAndConsumeLimit, getErrorMessage } from './creditService';
+import { extractJobInfo, inferKeyFocus, inferSeniority } from '../utils/smartSuggestions';
 
 export class GeminiService {
   private jobMatchService = new JobMatchService();
@@ -52,9 +54,23 @@ export class GeminiService {
         return 'Please add your contact information first using the Contact Information section above.';
       }
       
-      // Generate cover letter directly using enhanced service with few-shot prompting
+      // Perform a single credit check before generation to avoid double charging
       try {
-        const reply = await this.enhancedCoverLetterService.generateCoverLetter(contactInfo);
+        const creditCheck = await checkAndConsumeLimit('generate_cover_letter');
+        if (!creditCheck.allowed) {
+          const errorMessage = getErrorMessage(creditCheck);
+          throw new AppError(ErrorCode.QuotaExceeded, errorMessage);
+        }
+        if (import.meta.env.DEV) {
+          console.log('✅ Credit check passed (orchestrator):', {
+            planType: creditCheck.planType,
+            creditsRemaining: creditCheck.currentCredits,
+            dailyUsage: creditCheck.dailyUsage
+          });
+        }
+
+        // Generate cover letter directly using enhanced service with few-shot prompting
+        const reply = await this.enhancedCoverLetterService.generateCoverLetter(contactInfo, { skipCreditCheck: true });
         try { (await import('../utils/analytics')).trackEvent('generate_cover_letter_enhanced'); } catch {}
         return reply;
       } catch (error) {
@@ -62,7 +78,7 @@ export class GeminiService {
         // Fallback to original service if enhanced fails
         try {
           console.log('Falling back to original cover letter service...');
-          const fallbackReply = await this.coverLetterService.generateCoverLetter(contactInfo);
+          const fallbackReply = await this.coverLetterService.generateCoverLetter(contactInfo, { skipCreditCheck: true });
           try { (await import('../utils/analytics')).trackEvent('generate_cover_letter_fallback'); } catch {}
           return fallbackReply;
         } catch (fallbackError) {
@@ -78,16 +94,38 @@ export class GeminiService {
         message.toLowerCase().includes('optimize my resume') ||
         message.toLowerCase().includes('tailor resume') ||
         message.toLowerCase().includes('ats optimize')) {
-      
-      // Start resume optimization data collection
-      this.resumeOptimizerService.startDataCollection();
       try { (await import('../utils/analytics')).trackEvent('optimize_resume'); } catch {}
-      return `🎯 **Resume Optimizer Started!**
+
+      // Phase 2: One-click optimization (no Q&A)
+      try {
+        // Compute specs from existing data
+        const jdContent = this.jobDescription?.content || '';
+        const jdTitle = (this.jobDescription?.jobTitle) || extractJobInfo(jdContent).jobTitle || undefined;
+        const experienceLevel = inferSeniority(contactInfo?.professionalTitle, jdTitle) || undefined;
+        const keyFocus = inferKeyFocus(jdContent) || undefined;
+
+        // Ensure chat is initialized (defensive; usually handled by caller)
+        if (!this.cvData || !this.jobDescription) {
+          throw new Error('Chat not initialized');
+        }
+
+        // Generate directly with inferred specs
+        const reply = await this.resumeOptimizerService.generateFromSpecs({
+          targetRole: jdTitle,
+          experienceLevel: experienceLevel || undefined,
+          keyFocus: keyFocus || undefined
+        });
+        return reply;
+      } catch (error) {
+        // Fallback to previous Q&A flow for resilience
+        this.resumeOptimizerService.startDataCollection();
+        return `🎯 **Resume Optimizer Started!**
 
 I'll help you create an ATS-optimized resume tailored specifically for this position! I need to collect a few details first.
 
 **Step 1 of 3:**
 What specific role title should I optimize for? (e.g., "Senior SAP Consultant", "Finance Manager")`;
+      }
     }
 
     // Handle resume optimization data collection

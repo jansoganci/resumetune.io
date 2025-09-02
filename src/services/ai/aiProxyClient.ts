@@ -31,25 +31,28 @@ export async function sendAiMessage(
   message: string,
   model = 'gemini-1.5-flash'
 ): Promise<string> {
-  // Keep payload small in dev: last 8 entries and trimmed
+  // Keep payload manageable: limit history depth and cap char length conservatively
+  const MAX_CHARS = 16000;
   const safeHistory = (history || []).slice(-8).map(h => ({
     role: h.role,
-    parts: [{ text: (h.parts?.[0]?.text || '').slice(0, 4000) }]
+    parts: [{ text: (h.parts?.[0]?.text || '').slice(0, MAX_CHARS) }]
   }));
-  const safeMessage = (message || '').slice(0, 4000);
+  const safeMessage = (message || '').slice(0, MAX_CHARS);
 
   // Get user ID for quota tracking
   const userId = await getUserId();
 
-  // 🚨 DEBUG - Log request data
-  console.log('🔍 AI Proxy Request Debug:', {
-    history: safeHistory,
-    message: safeMessage,
-    model,
-    historyType: Array.isArray(safeHistory),
-    messageType: typeof safeMessage,
-    messageEmpty: !safeMessage
-  });
+  // 🚨 DEBUG - Log request data (dev only)
+  if (import.meta.env.DEV) {
+    console.log('🔍 AI Proxy Request Debug:', {
+      history: safeHistory,
+      message: safeMessage,
+      model,
+      historyType: Array.isArray(safeHistory),
+      messageType: typeof safeMessage,
+      messageEmpty: !safeMessage
+    });
+  }
 
   const response = await fetch('/api/ai/proxy', {
     method: 'POST',
@@ -86,12 +89,13 @@ export async function sendAiMessageWithCaptcha(
   model = 'gemini-1.5-flash',
   captchaToken?: string
 ): Promise<string> {
-  // Keep payload small in dev: last 8 entries and trimmed
+  // Keep payload manageable: limit history depth and cap char length conservatively
+  const MAX_CHARS = 16000;
   const safeHistory = (history || []).slice(-8).map(h => ({
     role: h.role,
-    parts: [{ text: (h.parts?.[0]?.text || '').slice(0, 4000) }]
+    parts: [{ text: (h.parts?.[0]?.text || '').slice(0, MAX_CHARS) }]
   }));
-  const safeMessage = (message || '').slice(0, 4000);
+  const safeMessage = (message || '').slice(0, MAX_CHARS);
 
   // Get user ID for quota tracking
   const userId = await getUserId();
@@ -131,5 +135,3 @@ export async function sendAiMessageWithCaptcha(
   const data = await response.json();
   return data.text as string;
 }
-
-

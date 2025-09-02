@@ -42,6 +42,26 @@ You now have the candidate's ${userProfile ? 'profile, ' : ''}CV and the job des
     ];
   }
 
+  // Phase 2: direct generation from provided specs (non-breaking)
+  async generateFromSpecs(specs: { targetRole?: string; experienceLevel?: string; keyFocus?: string }): Promise<string> {
+    if (!this.history.length) {
+      throw new Error('Chat not initialized');
+    }
+
+    // Reset any previous collection state
+    this.isCollectingData = false;
+    this.currentStep = 0;
+
+    // Apply provided specs with safe defaults for inference
+    this.resumeData = {
+      targetRole: specs.targetRole || 'Infer from job description and CV',
+      experienceLevel: specs.experienceLevel || 'Infer from user professional title and JD',
+      keyFocus: specs.keyFocus || 'Infer from job requirements and candidate background'
+    };
+
+    return await this.generateOptimizedResume();
+  }
+
   startDataCollection(): string {
     this.isCollectingData = true;
     this.currentStep = 0;
@@ -144,12 +164,8 @@ Generate ONLY the resume content following the mandatory structure. No introduct
       // Reset the data collection state
       this.resumeData = {};
       
-      return `✅ **Your ATS-optimized resume is ready:**
-
-${optimizedResume}
-
----
-🎉 **Professional resume generated!** Click the download buttons below to get PDF or DOCX versions.`;
+      // Phase 3: Return clean resume content only (no wrapper/CTA)
+      return optimizedResume;
       
     } catch (error) {
       this.isCollectingData = false;

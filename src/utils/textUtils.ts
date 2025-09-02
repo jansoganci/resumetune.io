@@ -38,6 +38,15 @@ export const cleanDocumentContent = (content: string): string => {
     .trim();
 };
 
+// Phase 2: remove bracketed placeholders like [Company Name], [Platform ...]
+export const stripKnownPlaceholders = (text: string): string => {
+  if (!((import.meta as any).env?.VITE_COVER_LETTER_PHASE2_PROMPT === '1' || (import.meta as any).env?.VITE_COVER_LETTER_PHASE2_PROMPT === 'true' || (import.meta as any).env?.VITE_COVER_LETTER_PHASE2_PROMPT === true)) {
+    return text;
+  }
+  // Remove bracketed segments that look like template placeholders
+  return text.replace(/\[(?:[^\]]*?(?:Company\s*Name|Platform|advert|placeholder)[^\]]*)\]/gi, '').replace(/\s{2,}/g, ' ').trim();
+};
+
 export const fixCharacterEncoding = (text: string): string => {
   // Fix common Turkish character encoding issues
   const encodingFixes = {
@@ -234,6 +243,28 @@ export const extractCoverLetterBody = (content: string): string => {
   return paragraphs.join('\n\n');
 };
 
+// Extract top quantified achievements from CV/resume text
+export const extractTopAchievements = (cvContent: string): string[] => {
+  const lines = (cvContent || '')
+    .split(/\n+/)
+    .map(l => l.trim())
+    .filter(Boolean);
+  // Prefer bullets or sentences with numbers/percentages/currency
+  const scored = lines.map(l => {
+    const score =
+      (l.match(/\d+%/g)?.length || 0) * 3 +
+      (l.match(/\$\s?\d+[\d,]*/g)?.length || 0) * 2 +
+      (l.match(/\b\d{2,}\b/g)?.length || 0) +
+      (l.match(/\b(achieved|increased|improved|reduced|led|managed|delivered|launched|optimized|built|implemented)\b/i)?.length ? 2 : 0);
+    return { line: l, score };
+  });
+  return scored
+    .filter(x => x.score > 0 && x.line.length > 20)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3)
+    .map(x => x.line.replace(/^[-*•]\s*/, ''));
+};
+
 // Cover Letter Specific Formatting Functions
 export const extractCoverLetterFromAIResponse = (aiResponse: string): string => {
   // Remove AI wrapper text and extract just the cover letter content
@@ -315,7 +346,9 @@ export const formatCoverLetterBody = (bodyContent: string): string => {
 
 export const formatCompleteCoverLetter = (rawContent: string, contactInfo: any): string => {
   // Extract just the cover letter content from AI response
-  const cleanContent = extractCoverLetterFromAIResponse(rawContent);
+  let cleanContent = extractCoverLetterFromAIResponse(rawContent);
+  // Phase 2: strip known placeholders
+  cleanContent = stripKnownPlaceholders(cleanContent);
   
   // Extract different parts of the cover letter
   const dateMatch = cleanContent.match(/(\w+ \d{1,2}, \d{4})/);
@@ -326,13 +359,38 @@ export const formatCompleteCoverLetter = (rawContent: string, contactInfo: any):
   });
   
   // Extract company and position from content
-  const companyMatch = cleanContent.match(/(?:at|for)\s+([A-Z][a-zA-Z\s&.,-]+?)(?:\s+for|\s+as|\.|,|\s+role|\s+position)/i) ||
-                      cleanContent.match(/Dear.*?Manager.*?at\s+([A-Z][a-zA-Z\s&.,-]+)/i);
-  const positionMatch = cleanContent.match(/(?:for|as)\s+(?:the\s+)?([A-Z][a-zA-Z\s&.,-]+?)(?:\s+position|\s+role|\s+at)/i) ||
-                       cleanContent.match(/applying\s+for\s+(?:the\s+)?([A-Z][a-zA-Z\s&.,-]+?)(?:\s+position|\s+role)/i);
+  const phase2 = (import.meta as any).env?.VITE_COVER_LETTER_PHASE2_PROMPT === '1' ||
+                 (import.meta as any).env?.VITE_COVER_LETTER_PHASE2_PROMPT === 'true' ||
+                 (import.meta as any).env?.VITE_COVER_LETTER_PHASE2_PROMPT === true;
+  let companyRaw = '';
+  let positionRaw = '';
+  if (phase2) {
+    // Prefer 'at <Company>' capture to avoid mistaking role phrases for company
+    const companyAtMatch = cleanContent.match(/\bat\s+([A-Z][a-zA-Z\s&.,-]+?)(?:\.|,|\s|$)/i);
+    const companyForMatch = cleanContent.match(/\bfor\s+([A-Z][a-zA-Z\s&.,-]+?)(?:\s+for|\s+as|\.|,|\s+role|\s+position)/i);
+    companyRaw = (companyAtMatch?.[1] || companyForMatch?.[1] || '').trim();
+    // Position can appear as 'for the <Title> position', 'applying for <Title> role', or '<Title> position at <Company>'
+    const positionMatch = cleanContent.match(/\b(?:for|as)\s+(?:the\s+)?([A-Z][a-zA-Z\s&.,-]+?)(?:\s+position|\s+role|\s+at)/i) ||
+                         cleanContent.match(/\bapplying\s+for\s+(?:the\s+)?([A-Z][a-zA-Z\s&.,-]+?)(?:\s+position|\s+role)/i) ||
+                         cleanContent.match(/\b([A-Z][a-zA-Z\s&.,-]+?)\s+position\s+at\s+[A-Z]/i);
+    positionRaw = positionMatch?.[1]?.trim() || '';
+    // Guard: if companyRaw looks like a role, discard it
+    const roleWords = /(analyst|engineer|developer|manager|director|consultant|specialist|designer|coordinator|lead|officer|architect|scientist)/i;
+    if (companyRaw && roleWords.test(companyRaw)) {
+      companyRaw = '';
+    }
+  } else {
+    // Legacy extraction behavior
+    const companyMatch = cleanContent.match(/(?:at|for)\s+([A-Z][a-zA-Z\s&.,-]+?)(?:\s+for|\s+as|\.|,|\s+role|\s+position)/i) ||
+                        cleanContent.match(/Dear.*?Manager.*?at\s+([A-Z][a-zA-Z\s&.,-]+)/i);
+    const legacyPosition = cleanContent.match(/(?:for|as)\s+(?:the\s+)?([A-Z][a-zA-Z\s&.,-]+?)(?:\s+position|\s+role|\s+at)/i) ||
+                           cleanContent.match(/applying\s+for\s+(?:the\s+)?([A-Z][a-zA-Z\s&.,-]+?)(?:\s+position|\s+role)/i);
+    companyRaw = companyMatch?.[1]?.trim() || '';
+    positionRaw = legacyPosition?.[1]?.trim() || '';
+  }
   
-  const company = companyMatch?.[1]?.trim() || 'Company Name';
-  const position = positionMatch?.[1]?.trim() || 'Position';
+  const company = companyRaw || 'Company Name';
+  const position = positionRaw || 'Position';
   
   // Extract body content (everything between greeting and closing)
   const bodyMatch = cleanContent.match(/Dear[^,]+,\s*([\s\S]*?)\s*Sincerely,/i);

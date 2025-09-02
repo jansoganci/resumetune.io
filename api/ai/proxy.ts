@@ -98,7 +98,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const chat = geminiModel.startChat({
       history: chatHistory,
       generationConfig: {
-        maxOutputTokens: 1000,
+        maxOutputTokens: 1400,
         temperature: 0.7,
       },
     });

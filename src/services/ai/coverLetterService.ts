@@ -34,24 +34,24 @@ You now have the candidate's ${userProfile ? 'profile, ' : ''}CV and the job des
     ];
   }
 
-  async generateCoverLetter(contactInfo: ContactInfo): Promise<string> {
+  async generateCoverLetter(contactInfo: ContactInfo, options?: { skipCreditCheck?: boolean }): Promise<string> {
     if (!this.history.length) {
       throw new Error('Cover letter service not initialized. Please try again.');
     }
 
-    // ✅ KREDİ KONTROLÜ - Cover letter generation 1 kredi tüketir
-    const creditCheck = await checkAndConsumeLimit('generate_cover_letter');
-    
-    if (!creditCheck.allowed) {
-      const errorMessage = getErrorMessage(creditCheck);
-      throw new AppError(ErrorCode.QuotaExceeded, errorMessage);
+    // ✅ KREDİ KONTROLÜ - Allow orchestrator to handle once
+    if (!options?.skipCreditCheck) {
+      const creditCheck = await checkAndConsumeLimit('generate_cover_letter');
+      if (!creditCheck.allowed) {
+        const errorMessage = getErrorMessage(creditCheck);
+        throw new AppError(ErrorCode.QuotaExceeded, errorMessage);
+      }
+      console.log('✅ Credit check passed for cover letter generation:', {
+        planType: creditCheck.planType,
+        creditsRemaining: creditCheck.currentCredits,
+        dailyUsage: creditCheck.dailyUsage
+      });
     }
-
-    console.log('✅ Credit check passed for cover letter generation:', {
-      planType: creditCheck.planType,
-      creditsRemaining: creditCheck.currentCredits,
-      dailyUsage: creditCheck.dailyUsage
-    });
 
     // Debug logs limited to dev environment to avoid leaking PII in production
     if (import.meta.env.DEV) {

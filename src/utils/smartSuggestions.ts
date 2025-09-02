@@ -253,3 +253,118 @@ export function getContextualSuggestions(analysis: TextAnalysis): string[] {
 
   return suggestions;
 }
+
+// ---------------------------------------------------------------
+// Phase 1 additions: inference helpers (non‑breaking)
+// ---------------------------------------------------------------
+
+export type SeniorityLevel =
+  | 'Intern'
+  | 'Junior'
+  | 'Mid'
+  | 'Senior'
+  | 'Lead'
+  | 'Staff'
+  | 'Principal'
+  | 'Manager'
+  | 'Director';
+
+function normalizeSeniorityFromText(text?: string | null): SeniorityLevel | null {
+  if (!text) return null;
+  const t = text.toLowerCase();
+  // Check explicit managerial first to avoid matching 'senior' inside other words
+  if (/\b(director|head of|vp|vice president)\b/.test(t)) return 'Director';
+  if (/\b(manager|management)\b/.test(t)) return 'Manager';
+  if (/\b(principal)\b/.test(t)) return 'Principal';
+  if (/\b(staff)\b/.test(t)) return 'Staff';
+  if (/\b(lead|team lead|tech lead|leading)\b/.test(t)) return 'Lead';
+  if (/\b(senior|sr\.?|snr\.?|expert)\b/.test(t)) return 'Senior';
+  if (/\b(mid|middle|intermediate)\b/.test(t)) return 'Mid';
+  if (/\b(junior|jr\.?|entry|associate)\b/.test(t)) return 'Junior';
+  if (/\b(intern|internship|trainee)\b/.test(t)) return 'Intern';
+  return null;
+}
+
+/**
+ * Infer a normalized seniority level from the user's professional title,
+ * optionally overridden by an explicit seniority cue in the JD title.
+ * Non‑breaking: safe to call without altering existing flows.
+ */
+export function inferSeniority(
+  professionalTitle?: string,
+  jdTitle?: string
+): SeniorityLevel | null {
+  // Prefer explicit JD title cues if present
+  const fromJD = normalizeSeniorityFromText(jdTitle);
+  if (fromJD) return fromJD;
+  // Fallback to user's own professional title
+  const fromUser = normalizeSeniorityFromText(professionalTitle);
+  return fromUser;
+}
+
+/**
+ * Infer a single key focus theme from the job description by scoring
+ * common requirement clusters. Returns a concise label.
+ */
+export function inferKeyFocus(jdText?: string): string | null {
+  if (!jdText || jdText.trim().length === 0) return null;
+  const t = jdText.toLowerCase();
+
+  const buckets: Record<string, string[]> = {
+    'Leadership': [
+      'leadership', 'lead cross', 'manage', 'management', 'mentor', 'stakeholder',
+      'roadmap', 'strategy', 'strategic', 'ownership', 'drive initiatives'
+    ],
+    'Analytics': [
+      'analytics', 'analysis', 'insights', 'kpi', 'dashboard', 'sql', 'a/b', 'hypothesis', 'statistics'
+    ],
+    'Automation': [
+      'automation', 'automate', 'rpa', 'scripting', 'pipelines', 'ci/cd'
+    ],
+    'Technical Expertise': [
+      'architecture', 'design systems', 'low latency', 'scalability', 'performance tuning', 'best practices', 'clean code'
+    ],
+    'Cloud/DevOps': [
+      'aws', 'gcp', 'azure', 'terraform', 'kubernetes', 'docker', 'helm', 'devops', 'observability'
+    ],
+    'Data & Insights': [
+      'data engineering', 'etl', 'elt', 'data warehouse', 'snowflake', 'bigquery', 'spark', 'airflow'
+    ],
+    'Security': [
+      'security', 'owasp', 'iso 27001', 'sox', 'gdpr', 'iam', 'oauth', 'encryption', 'threat'
+    ],
+    'Compliance': [
+      'compliance', 'audit', 'regulatory', 'sox', 'pci', 'hipaa'
+    ],
+    'Product/Ownership': [
+      'product', 'roadmap', 'discovery', 'requirements', 'backlog', 'prioritization', 'go-to-market'
+    ],
+    'Customer Focus': [
+      'customer', 'user research', 'ux', 'ui', 'usability', 'customer success', 'stakeholder satisfaction'
+    ]
+  };
+
+  // Score buckets by keyword occurrences
+  const scores: Record<string, number> = {};
+  for (const [label, keywords] of Object.entries(buckets)) {
+    scores[label] = keywords.reduce((acc, kw) => acc + (t.includes(kw) ? 1 : 0), 0);
+  }
+
+  // Choose the highest scoring label with a sensible priority order for ties
+  const priority = [
+    'Leadership', 'Technical Expertise', 'Cloud/DevOps', 'Data & Insights',
+    'Analytics', 'Automation', 'Security', 'Compliance', 'Product/Ownership', 'Customer Focus'
+  ];
+
+  let best: string | null = null;
+  let bestScore = 0;
+  for (const label of priority) {
+    const score = scores[label] || 0;
+    if (score > bestScore) {
+      best = label;
+      bestScore = score;
+    }
+  }
+
+  return best;
+}

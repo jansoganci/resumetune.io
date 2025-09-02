@@ -10,7 +10,6 @@
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,
-    "allowImportingTsExtensions": true,
     "moduleDetection": "force",
     "resolveJsonModule": true,
     "lib": ["ES2022"]
