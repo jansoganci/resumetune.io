@@ -44,6 +44,16 @@ CRITICAL RESUME REQUIREMENTS:
 • ATS-compatible formatting with clear sections
 • Use candidate profile to determine appropriate tone and focus
 
+🌍 INTERNATIONAL CHARACTER FORMATTING RULES:
+• NEVER add spaces between individual characters in names or words
+• Preserve proper Turkish characters: ç, ğ, ı, ş, ü, ö, İ, Ğ, Ş, Ü, Ö, Ç
+• Maintain correct German umlauts: ä, ö, ü, ß, Ä, Ö, Ü
+• Keep Spanish accents: ñ, á, é, í, ó, ú, Ñ, Á, É, Í, Ó, Ú
+• Preserve French accents: à, è, ù, â, ê, î, ô, û, ç, À, È, Ù, Â, Ê, Î, Ô, Û, Ç
+• Maintain Arabic, Chinese, Korean, Japanese characters properly
+• Example: "Ahmet Can Yılmaz" NOT "A h m e t  C a n  Y ı l m a z"
+• Example: "Istanbul, Türkiye" NOT "I s t a n b u l ,  T ü r k i y e"
+
 MANDATORY STRUCTURE - Use EXACTLY this format:
 
 [Full Name from Profile/CV]

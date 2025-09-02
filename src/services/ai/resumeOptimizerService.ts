@@ -1,6 +1,6 @@
 import { RESUME_OPTIMIZER_SYSTEM_PROMPT } from './prompts/resumeOptimizerPrompt';
 import { CVData, JobDescription, UserProfile } from '../../types';
-import { cleanDocumentContent } from '../../utils/textUtils';
+import { cleanDocumentContent, fixCharacterEncoding, validateDocumentContent } from '../../utils/textUtils';
 import { sendAiMessage, AiHistoryItem } from './aiProxyClient';
 import { AppError, ErrorCode, mapUnknownError } from '../../utils/errors';
 import { checkAndConsumeLimit, getErrorMessage } from '../creditService';
@@ -160,6 +160,23 @@ Generate ONLY the resume content following the mandatory structure. No introduct
       
       // Clean the resume content using utility function
       optimizedResume = cleanDocumentContent(optimizedResume);
+      
+      // Apply international character fixes (handles Turkish, German, Spanish, etc.)
+      optimizedResume = fixCharacterEncoding(optimizedResume);
+      
+      // Validate resume quality - retry if malformed
+      const isValid = validateDocumentContent(optimizedResume, 'resume');
+      if (!isValid) {
+        console.warn('Resume validation failed, attempting to fix character issues');
+        // Apply character fixes again as a fallback
+        optimizedResume = fixCharacterEncoding(optimizedResume);
+        
+        // If still invalid after fixes, log warning but proceed
+        const stillInvalid = !validateDocumentContent(optimizedResume, 'resume');
+        if (stillInvalid) {
+          console.warn('Resume still has formatting issues after fixes, but proceeding');
+        }
+      }
       
       // Reset the data collection state
       this.resumeData = {};

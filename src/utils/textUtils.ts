@@ -47,14 +47,97 @@ export const stripKnownPlaceholders = (text: string): string => {
   return text.replace(/\[(?:[^\]]*?(?:Company\s*Name|Platform|advert|placeholder)[^\]]*)\]/gi, '').replace(/\s{2,}/g, ' ').trim();
 };
 
-export const fixCharacterEncoding = (text: string): string => {
-  // Fix common Turkish character encoding issues
-  const encodingFixes = {
-    // Fix other spaced patterns that might occur
-    'I s t a n b u l ,   T ü r k i y e': 'Istanbul, Turkey',
-    'I s t a n b u l ,   T u r k e y': 'Istanbul, Turkey',
+export const fixCharacterSpacing = (text: string): string => {
+  // Fix AI-generated character spacing issues for all languages
+  let fixed = text;
+  
+  // Define Unicode ranges for letters
+  const letterPattern = /[A-Za-z\u00C0-\u00FF\u0100-\u017F\u0180-\u024F\u1E00-\u1EFF\u0400-\u04FF\u0500-\u052F\u2DE0-\u2DFF\uA640-\uA69F\u1D00-\u1D7F\u1D80-\u1DBF\u1DC0-\u1DFF\u0590-\u05FF\u0600-\u06FF\u0700-\u074F\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF\u4E00-\u9FFF\u3400-\u4DBF\u20000-\u2A6DF\u2A700-\u2B73F\u2B740-\u2B81F\u2B820-\u2CEAF\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F\uA960-\uA97F\uD7B0-\uD7FF\u3040-\u309F\u30A0-\u30FF\u31F0-\u31FF]/;
+  
+  // Strategy: Split by spaces, then rejoin appropriately
+  const words = fixed.split(/\s+/);
+  const result = [];
+  
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i];
     
-    // Fix broken encoding characters
+    // If this word is a single character and is a letter
+    if (word.length === 1 && letterPattern.test(word)) {
+      let combined = word;
+      let j = i + 1;
+      
+      // Keep combining single letter "words" until we hit a word boundary indicator
+      while (j < words.length && words[j].length === 1 && letterPattern.test(words[j])) {
+        combined += words[j];
+        j++;
+      }
+      
+      // Check if we should break the word here (word boundary detection)
+      if (j < words.length) {
+        const nextWord = words[j];
+        
+        // If next word is also spaced letters, we likely have multiple words
+        // Look ahead to see if there's a pattern that suggests word boundary
+        if (nextWord.length === 1 && letterPattern.test(nextWord)) {
+          // Check if this looks like a new word (common patterns)
+          const combinedLower = combined.toLowerCase();
+          
+          // Turkish/international name patterns that suggest word boundary
+          const wordBoundaryPatterns = [
+            /^(ahmet|can|mehmet|ali|ayşe|fatma|zeynep|ibrahim|ismail|mustafa)$/i,
+            /^(istanbul|ankara|izmir|bursa|antalya|adana)$/i,
+            /^(university|üniversitesi|technical|teknik)$/i,
+            /^(manager|uzman|specialist|engineer|analyst|consultant)$/i,
+            /^(information|management|systems|business|data)$/i
+          ];
+          
+          // If current combined word matches a known pattern, treat it as complete word
+          if (wordBoundaryPatterns.some(pattern => pattern.test(combinedLower))) {
+            result.push(combined);
+            i = j - 1; // Continue from next word
+            continue;
+          }
+        }
+      }
+      
+      // If we combined multiple letters, this was likely spaced text
+      if (j > i + 1) {
+        result.push(combined);
+        i = j - 1; // Skip the combined characters
+        continue;
+      }
+    }
+    
+    // Handle punctuation attached to spaced characters
+    if (word.length === 2 && letterPattern.test(word[0]) && /[,.;:]/.test(word[1])) {
+      if (result.length > 0 && letterPattern.test(result[result.length - 1].slice(-1))) {
+        result[result.length - 1] += word;
+        continue;
+      }
+    }
+    
+    result.push(word);
+  }
+  
+  // Join with spaces and clean up
+  fixed = result.join(' ');
+  
+  // Fix remaining spaced punctuation
+  fixed = fixed.replace(/\s+([,.;:])/g, '$1');
+  
+  // Clean up multiple spaces
+  fixed = fixed.replace(/\s{2,}/g, ' ');
+  
+  return fixed.trim();
+};
+
+export const fixCharacterEncoding = (text: string): string => {
+  // First fix character spacing issues
+  let fixed = fixCharacterSpacing(text);
+  
+  // Then fix encoding issues
+  const encodingFixes = {
+    // Fix broken encoding characters (Turkish)
     'Ã¼': 'ü',
     'Ã¶': 'ö', 
     'Ã§': 'ç',
@@ -64,28 +147,63 @@ export const fixCharacterEncoding = (text: string): string => {
     'Ä': 'ğ',
     'Ã': 'ü',
     
-    // Fix specific broken text patterns
-    'T�rk': 'Türk',
-    'T�rkiye': 'Türkiye',
+    // Fix broken encoding characters (German)
+    'Ã¤': 'ä',
+    'Ã„': 'Ä',
+    'Ã–': 'Ö',
+    'Ãœ': 'Ü',
+    'ÃŸ': 'ß',
     
-    // Country name updates - use official name
-    'Turkey': 'Turkey',
-    'Istanbul, Turkey': 'Istanbul, Turkey',
+    // Fix broken encoding characters (Spanish)
+    'Ã±': 'ñ',
+    'Ã¡': 'á',
+    'Ã©': 'é',
+    'Ã­': 'í',
+    'Ã³': 'ó',
+    'Ãº': 'ú',
     
-    '�': '', // Remove replacement characters
-    '': '' // Remove any remaining replacement characters
+    // Fix broken encoding characters (French)
+    'Ã ': 'à',
+    'Ã¨': 'è',
+    'Ã¹': 'ù',
+    'Ã¢': 'â',
+    'Ãª': 'ê',
+    'Ã®': 'î',
+    'Ã´': 'ô',
+    'Ã»': 'û',
+    'Ã§fr': 'ç',
+    
+    // Remove replacement characters
+    '�': '',
+    '': ''
   };
 
-  let fixedText = text;
-  Object.entries(encodingFixes).forEach(([broken, fixed]) => {
-    fixedText = fixedText.replace(new RegExp(broken, 'g'), fixed);
+  Object.entries(encodingFixes).forEach(([broken, fixedChar]) => {
+    fixed = fixed.replace(new RegExp(broken, 'g'), fixedChar);
   });
 
-  return fixedText;
+  return fixed;
+};
+
+export const detectCharacterSpacingIssues = (content: string): boolean => {
+  // Detect if content has character spacing issues
+  const spacingPatterns = [
+    /\b[A-Za-zÀ-ÿĀ-žА-я\u0100-\u017F\u0180-\u024F\u1E00-\u1EFF\u0400-\u04FF\u0590-\u05FF\u0600-\u06FF\u4E00-\u9FFF\uAC00-\uD7AF\u3040-\u309F\u30A0-\u30FF]\s+[A-Za-zÀ-ÿĀ-žА-я\u0100-\u017F\u0180-\u024F\u1E00-\u1EFF\u0400-\u04FF\u0590-\u05FF\u0600-\u06FF\u4E00-\u9FFF\uAC00-\uD7AF\u3040-\u309F\u30A0-\u30FF]\s+[A-Za-zÀ-ÿĀ-žА-я\u0100-\u017F\u0180-\u024F\u1E00-\u1EFF\u0400-\u04FF\u0590-\u05FF\u0600-\u06FF\u4E00-\u9FFF\uAC00-\uD7AF\u3040-\u309F\u30A0-\u30FF]/g,
+    /[A-Za-zÀ-ÿĀ-žА-я\u0100-\u017F\u0180-\u024F\u1E00-\u1EFF\u0400-\u04FF\u0590-\u05FF\u0600-\u06FF\u4E00-\u9FFF\uAC00-\uD7AF\u3040-\u309F\u30A0-\u30FF]\s+[,.;:]/g
+  ];
+  
+  return spacingPatterns.some(pattern => pattern.test(content));
 };
 
 export const validateDocumentContent = (content: string, type: 'resume' | 'cover-letter'): boolean => {
   const cleanContent = cleanDocumentContent(content);
+  
+  // Check for character spacing issues
+  const hasSpacingIssues = detectCharacterSpacingIssues(cleanContent);
+  if (hasSpacingIssues) {
+    console.warn('Document validation failed: Character spacing issues detected');
+    return false;
+  }
   
   if (type === 'resume') {
     // Resume should have key sections and be substantial
@@ -136,17 +254,36 @@ export const extractResumeInfo = (content: string) => {
   };
 }
 
+export const formatResumeStructure = (content: string): string => {
+  let formatted = content;
+  
+  // Ensure proper section headers with consistent formatting
+  formatted = formatted
+    .replace(/PROFESSIONAL\s+SUMMARY/gi, '\nPROFESSIONAL SUMMARY\n')
+    .replace(/TECHNICAL\s+SKILLS/gi, '\nTECHNICAL SKILLS\n')
+    .replace(/WORK\s+EXPERIENCE/gi, '\nWORK EXPERIENCE\n')
+    .replace(/EDUCATION.*?CERTIFICATIONS/gi, '\nEDUCATION & CERTIFICATIONS\n')
+    .replace(/CERTIFICATIONS/gi, '\nCERTIFICATIONS\n')
+    
+    // Fix bullet point formatting
+    .replace(/•\s+/g, '• ')
+    .replace(/^\s*[-*+]\s/gm, '• ')
+    
+    // Clean up excessive whitespace but preserve section breaks
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/^\s+/gm, '')
+    .replace(/\s+$/gm, '')
+    .trim();
+  
+  return formatted;
+};
+
 export const formatProfessionalContent = (content: string, type: 'resume' | 'cover-letter'): string => {
   let formatted = cleanDocumentContent(content);
   formatted = fixCharacterEncoding(formatted);
   
   if (type === 'resume') {
-    // Ensure proper resume structure
-    formatted = formatted
-      .replace(/PROFESSIONAL SUMMARY/g, 'PROFESSIONAL SUMMARY')
-      .replace(/TECHNICAL SKILLS/g, 'TECHNICAL SKILLS')
-      .replace(/WORK EXPERIENCE/g, 'WORK EXPERIENCE')
-      .replace(/EDUCATION & CERTIFICATIONS/g, 'EDUCATION & CERTIFICATIONS');
+    formatted = formatResumeStructure(formatted);
   }
   
   return formatted;
