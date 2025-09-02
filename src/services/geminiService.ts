@@ -1,5 +1,6 @@
 import { JobMatchService } from './ai/jobMatchService';
 import { CoverLetterService } from './ai/coverLetterService';
+import { EnhancedCoverLetterService } from './ai/enhancedCoverLetterService';
 import { ResumeOptimizerService } from './ai/resumeOptimizerService';
 import { ChatMessage, MatchResult, CVData, JobDescription, UserProfile } from '../types';
 import { ContactInfo } from '../components/ContactInfoInput';
@@ -8,6 +9,7 @@ import { AppError, ErrorCode, mapUnknownError } from '../utils/errors';
 export class GeminiService {
   private jobMatchService = new JobMatchService();
   private coverLetterService = new CoverLetterService();
+  private enhancedCoverLetterService = new EnhancedCoverLetterService();
   private resumeOptimizerService = new ResumeOptimizerService();
   
   private cvData: CVData | null = null;
@@ -22,6 +24,7 @@ export class GeminiService {
     // Initialize all services
     await this.jobMatchService.initializeChat(cvData, jobDescription, userProfile);
     await this.coverLetterService.initializeChat(cvData, jobDescription, userProfile);
+    await this.enhancedCoverLetterService.initializeChat(cvData, jobDescription, userProfile);
     await this.resumeOptimizerService.initializeChat(cvData, jobDescription, userProfile);
   }
 
@@ -49,15 +52,24 @@ export class GeminiService {
         return 'Please add your contact information first using the Contact Information section above.';
       }
       
-      // Generate cover letter directly using provided contact info
+      // Generate cover letter directly using enhanced service with few-shot prompting
       try {
-        const reply = await this.coverLetterService.generateCoverLetter(contactInfo);
-        try { (await import('../utils/analytics')).trackEvent('generate_cover_letter'); } catch {}
+        const reply = await this.enhancedCoverLetterService.generateCoverLetter(contactInfo);
+        try { (await import('../utils/analytics')).trackEvent('generate_cover_letter_enhanced'); } catch {}
         return reply;
       } catch (error) {
-        console.error('Cover letter generation error:', error);
-        const mapped = mapUnknownError(error);
-        throw AppError.fromOptions({ code: mapped.code || ErrorCode.AiFailed, messageKey: 'errors.aiFailed', cause: error });
+        console.error('Enhanced cover letter generation error:', error);
+        // Fallback to original service if enhanced fails
+        try {
+          console.log('Falling back to original cover letter service...');
+          const fallbackReply = await this.coverLetterService.generateCoverLetter(contactInfo);
+          try { (await import('../utils/analytics')).trackEvent('generate_cover_letter_fallback'); } catch {}
+          return fallbackReply;
+        } catch (fallbackError) {
+          console.error('Fallback cover letter generation also failed:', fallbackError);
+          const mapped = mapUnknownError(error);
+          throw AppError.fromOptions({ code: mapped.code || ErrorCode.AiFailed, messageKey: 'errors.aiFailed', cause: error });
+        }
       }
     }
 
@@ -95,6 +107,7 @@ What specific role title should I optimize for? (e.g., "Senior SAP Consultant", 
   reset() {
     this.jobMatchService.reset();
     this.coverLetterService.reset();
+    this.enhancedCoverLetterService.reset();
     this.resumeOptimizerService.reset();
     this.cvData = null;
     this.jobDescription = null;

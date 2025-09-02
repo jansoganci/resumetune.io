@@ -1,5 +1,7 @@
 export type AnalyticsEvent =
   | 'generate_cover_letter'
+  | 'generate_cover_letter_enhanced'
+  | 'generate_cover_letter_fallback'
   | 'optimize_resume'
   | 'export_pdf'
   | 'export_docx'

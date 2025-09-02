@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Zap } from 'lucide-react';
 import Header from '../components/Header';
 import { useTranslation } from 'react-i18next';
@@ -11,6 +11,8 @@ import { CollapsibleChat } from '../components/CollapsibleChat';
 import { InfoModal } from '../components/InfoModal';
 import { ProfileStatusBar } from '../components/ProfileStatusBar';
 import { ProfileEditModal } from '../components/ProfileEditModal';
+import { QuotaIndicator, QuotaIndicatorRef } from '../components/QuotaIndicator';
+
 import { AnimateOnScroll, SuccessCelebration, AnimatedButton } from '../utils/animations';
 import { AnalysisProgress } from '../components/ProgressIndicators';
 import { useKeyboardShortcuts, createAppShortcuts } from '../hooks/useKeyboardShortcuts';
@@ -39,6 +41,7 @@ export default function HomePage() {
   const [showCelebration, setShowCelebration] = useState(false);
   const [showShortcutHint] = useState(false);
   const [geminiService] = useState(() => new GeminiService());
+  const quotaIndicatorRef = useRef<QuotaIndicatorRef>(null);
   const toast = useToast();
 
   // Load saved data on component mount
@@ -186,6 +189,9 @@ export default function HomePage() {
       try { trackEvent('job_match_done', { score: result.decision === 'yes' ? 1 : 0 }); } catch {}
       setMatchResult(result);
       
+      // Refresh quota after successful job match
+      quotaIndicatorRef.current?.refresh();
+      
       // Show celebration for successful matches
       if (result.decision === 'yes') {
         setShowCelebration(true);
@@ -241,6 +247,9 @@ export default function HomePage() {
       };
 
       setChatMessages(prev => [...prev, assistantMessage]);
+      
+      // Refresh quota after successful cover letter generation
+      quotaIndicatorRef.current?.refresh();
     } catch (err) {
       const { messageKey, params } = handleApiError(err);
       toast.error(messageKey, params);
@@ -307,6 +316,11 @@ export default function HomePage() {
         {/* Primary Analysis Button */}
         <AnimateOnScroll animation="fadeInUp" delay="delay300">
           <div className="text-center">
+            {/* Minimal Quota Indicator */}
+            <div className="mb-3 flex justify-center">
+              <QuotaIndicator ref={quotaIndicatorRef} />
+            </div>
+            
             <AnimatedButton
               onClick={handleCheckMatch}
               disabled={!canAnalyze}

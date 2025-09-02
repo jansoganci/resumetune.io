@@ -213,17 +213,7 @@ export async function checkAndConsumeLimit(
   userId?: string
 ): Promise<CreditCheckResult> {
   
-  // 🚨 DEVELOPMENT BYPASS - Skip credit validation in development
-  if (process.env.NODE_ENV === 'development') {
-    console.log('🚨 CREDIT CHECK BYPASSED FOR DEVELOPMENT');
-    return {
-      allowed: true,
-      reason: 'Development bypass',
-      planType: 'free',
-      currentCredits: 999,
-      dailyUsage: 0
-    };
-  }
+
   
   try {
     // 1. Kullanıcı ID'si kontrolü (authenticated veya anonymous)

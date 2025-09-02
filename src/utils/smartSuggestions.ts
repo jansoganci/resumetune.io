@@ -194,13 +194,23 @@ export function analyzeJobDescription(text: string): TextAnalysis {
   const hasRequirements = /(?:requirements?|qualifications?|skills?|experience):/i.test(text) ||
                          /(?:must have|required|essential|preferred):/i.test(text);
 
-  // Calculate completeness score
+  // Calculate completeness score - more generous for substantial content
   let completeness = 0;
-  if (characterCount > 100) completeness += 20;
-  if (characterCount > 500) completeness += 20;
-  if (hasJobTitle) completeness += 20;
-  if (hasCompany) completeness += 20;
-  if (hasRequirements) completeness += 20;
+  
+  // Base score for content length (more generous)
+  if (characterCount > 100) completeness += 15;
+  if (characterCount > 500) completeness += 15;
+  if (characterCount > 1000) completeness += 15;  // Bonus for substantial content
+  if (characterCount > 2000) completeness += 10;  // Extra bonus for very detailed content
+  
+  // Content quality indicators
+  if (hasJobTitle) completeness += 15;
+  if (hasCompany) completeness += 15;
+  if (hasRequirements) completeness += 15;
+  
+  // Additional quality indicators for substantial content
+  if (wordCount > 200) completeness += 10;  // Bonus for detailed descriptions
+  if (wordCount > 500) completeness += 5;   // Extra bonus for very detailed content
 
   return {
     characterCount,
@@ -217,20 +227,24 @@ export function analyzeJobDescription(text: string): TextAnalysis {
 export function getContextualSuggestions(analysis: TextAnalysis): string[] {
   const suggestions: string[] = [];
 
-  if (analysis.characterCount < 100) {
+  // Only suggest more content if it's truly minimal
+  if (analysis.characterCount < 200) {
     suggestions.push('Add more details about the role and requirements');
   }
 
-  if (!analysis.hasJobTitle) {
-    suggestions.push('Include the specific job title or position name');
-  }
+  // Only suggest missing elements if content is substantial enough
+  if (analysis.characterCount > 500) {
+    if (!analysis.hasJobTitle) {
+      suggestions.push('Include the specific job title or position name');
+    }
 
-  if (!analysis.hasCompany) {
-    suggestions.push('Mention the company or organization name');
-  }
+    if (!analysis.hasCompany) {
+      suggestions.push('Mention the company or organization name');
+    }
 
-  if (!analysis.hasRequirements) {
-    suggestions.push('Add required skills, experience, or qualifications');
+    if (!analysis.hasRequirements) {
+      suggestions.push('Add required skills, experience, or qualifications');
+    }
   }
 
   if (analysis.completeness < 60) {

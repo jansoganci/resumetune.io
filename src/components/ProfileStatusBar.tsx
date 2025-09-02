@@ -8,6 +8,7 @@ import { SuccessCelebration } from '../utils/animations';
 import { ProfileCompletion } from './ProgressIndicators';
 import { Tooltip, AutoSaveIndicator } from './MicroFeedback';
 
+
 interface ProfileStatusBarProps {
   userProfile: UserProfile | null;
   contactInfo: ContactInfo | null;
