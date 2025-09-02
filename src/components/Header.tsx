@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Zap } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
@@ -12,8 +12,9 @@ interface HeaderProps {
 
 export default function Header({ onInfoClick }: HeaderProps = {}): JSX.Element {
   const { t } = useTranslation();
-  const { user, signOut, loading } = useAuth();
+  const { user, signOut } = useAuth();
   const toast = useToast();
+  const location = useLocation();
 
   const handleInfoClick = () => {
     if (onInfoClick) {
@@ -48,6 +49,40 @@ export default function Header({ onInfoClick }: HeaderProps = {}): JSX.Element {
             </div>
           </div>
           <div className="flex items-center space-x-2 md:space-x-3">
+            {/* Main Navigation */}
+            <nav className="hidden md:flex items-center space-x-6 mr-4">
+              <Link 
+                to="/" 
+                className={`text-sm font-medium transition-colors ${
+                  location.pathname === '/' 
+                    ? 'text-blue-600' 
+                    : 'text-gray-700 hover:text-gray-900'
+                }`}
+              >
+                Home
+              </Link>
+              <Link 
+                to="/blog" 
+                className={`text-sm font-medium transition-colors ${
+                  location.pathname.startsWith('/blog') 
+                    ? 'text-blue-600' 
+                    : 'text-gray-700 hover:text-gray-900'
+                }`}
+              >
+                Blog
+              </Link>
+              <Link 
+                to="/pricing" 
+                className={`text-sm font-medium transition-colors ${
+                  location.pathname === '/pricing' 
+                    ? 'text-blue-600' 
+                    : 'text-gray-700 hover:text-gray-900'
+                }`}
+              >
+                Pricing
+              </Link>
+            </nav>
+            
             <InfoIcon onClick={handleInfoClick} />
             {user ? (
               <div className="flex items-center space-x-2">

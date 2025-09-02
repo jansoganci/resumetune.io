@@ -1,5 +1,5 @@
 const common = {
-  appTitle: 'CareerBoost AI',
+  appTitle: 'ResumeTune',
   appSubtitle: 'AI 帮你匹配职位、生成求职信并优化简历',
   yourCV: '你的简历', addYourCV: '添加简历内容', checkJobMatch: '检查匹配度', analyzingMatch: '正在分析…', aiAdvisor: 'AI 职业顾问', disclaimerTitle: '重要提示', howTo: '使用方法：',
   langEN: 'EN', langTR: 'TR', langES: 'ES', langDE: 'DE', langZH: 'ZH', langKO: 'KO', langJA: 'JA', langAR: 'AR',

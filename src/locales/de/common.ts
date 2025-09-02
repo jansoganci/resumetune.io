@@ -1,5 +1,5 @@
 const common = {
-  appTitle: 'CareerBoost AI',
+  appTitle: 'ResumeTune',
   appSubtitle: 'Dein KI-Karrierebegleiter für Job-Matching, Anschreiben und Lebenslauf-Optimierung',
   yourCV: 'Dein Lebenslauf', addYourCV: 'Füge deinen Lebenslaufinhalt hinzu',
   checkJobMatch: 'Passung prüfen', analyzingMatch: 'Passung wird analysiert...', aiAdvisor: 'KI-Karriereberater', disclaimerTitle: 'Wichtiger Hinweis', howTo: 'So funktioniert’s:',

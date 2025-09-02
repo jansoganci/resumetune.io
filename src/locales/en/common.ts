@@ -1,5 +1,5 @@
 const common = {
-  appTitle: 'CareerBoost AI',
+  appTitle: 'ResumeTune',
   appSubtitle: 'Your AI career companion for job matching, cover letters, and resume optimization',
   yourCV: 'Your CV',
   addYourCV: 'Add Your CV Content',
