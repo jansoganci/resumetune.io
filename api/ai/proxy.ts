@@ -1,40 +1,23 @@
-import { VercelRequest, VercelResponse } from '@vercel/node';
+import { VercelResponse } from '@vercel/node';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { compose, withCORS, withOptionalAuth, withMethods, UserRequest } from '../_lib/middleware.js';
 
 // ================================================================
 // AI PROXY ENDPOINT
 // ================================================================
 // This endpoint handles all AI requests from the frontend
-// It proxies requests to Google Gemini AI with proper error handling
+// Proxies requests to Google Gemini AI with proper error handling
+// Supports both authenticated and anonymous users
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Basic CORS (MVP): allow site origins only
-  const origin = req.headers.origin || '';
-  const allowed = ['https://resumetune.io', 'http://localhost:5173'];
-  if (allowed.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Vary', 'Origin');
-  }
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'content-type, x-user-id');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(204).end();
-  }
-
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST, OPTIONS');
-    return res.status(405).json({ error: { code: 'METHOD_NOT_ALLOWED', message: 'Method Not Allowed' } });
-  }
-
+async function handler(req: UserRequest, res: VercelResponse) {
   // Check for required environment variables
   if (!process.env.GEMINI_API_KEY) {
     console.error('Missing GEMINI_API_KEY environment variable');
-    return res.status(501).json({ 
-      error: { 
-        code: 'CONFIGURATION_ERROR', 
-        message: 'AI service not configured' 
-      } 
+    return res.status(501).json({
+      error: {
+        code: 'CONFIGURATION_ERROR',
+        message: 'AI service not configured'
+      }
     });
   }
 
@@ -44,16 +27,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!message) {
       return res.status(400).json({
-        error: { code: 'INVALID_REQUEST', message: 'Message is required' }
+        error: {
+          code: 'INVALID_REQUEST',
+          message: 'Message is required'
+        }
       });
     }
 
-    // Get user ID for logging
-    const userId = req.headers['x-user-id'] as string;
+    // Get validated user ID from middleware
+    const userId = req.userId;
+    const isAnonymous = req.isAnonymous;
+
     console.log(`🤖 AI request from user ${userId?.substring(0, 8)}... with model ${model}`);
 
     // Check credits/quota before processing
-    const isAnonymous = userId?.startsWith('anon_');
     
     if (isAnonymous) {
       // For anonymous users: check daily quota limit
@@ -71,8 +58,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           
         const currentUsage = usage?.ai_calls_count || 0;
         if (currentUsage >= 3) {
-          return res.status(429).json({ 
-            error: { code: 'QUOTA_EXCEEDED', message: 'Daily limit of 3 AI calls reached' }
+          return res.status(429).json({
+            error: {
+              code: 'QUOTA_EXCEEDED',
+              message: 'Daily limit of 3 AI calls reached'
+            }
           });
         }
       } catch (error) {
@@ -142,26 +132,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   } catch (error) {
     console.error('❌ AI Proxy error:', error);
-    
+
     // Handle specific error types
     if (error instanceof Error) {
       if (error.message.includes('API_KEY')) {
         return res.status(401).json({
-          error: { code: 'INVALID_API_KEY', message: 'Invalid API key' }
+          error: {
+            code: 'INVALID_API_KEY',
+            message: 'Invalid API key'
+          }
         });
       }
       if (error.message.includes('quota') || error.message.includes('limit')) {
         return res.status(429).json({
-          error: { code: 'QUOTA_EXCEEDED', message: 'AI service quota exceeded' }
+          error: {
+            code: 'QUOTA_EXCEEDED',
+            message: 'AI service quota exceeded'
+          }
         });
       }
     }
-    
+
     return res.status(500).json({
-      error: { 
-        code: 'AI_ERROR', 
-        message: 'AI service temporarily unavailable' 
+      error: {
+        code: 'AI_ERROR',
+        message: 'AI service temporarily unavailable'
       }
     });
   }
 }
+
+// Apply middleware: CORS -> OptionalAuth -> Method validation
+export default compose([
+  withCORS,
+  withOptionalAuth,
+  (handler) => withMethods(['POST'], handler)
+])(handler);

@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
-import { VercelRequest, VercelResponse } from '@vercel/node';
+import { VercelResponse } from '@vercel/node';
+import { compose, withCORS, withAuth, withMethods, AuthenticatedRequest } from './_lib/middleware.js';
 
 // Plan mapping to price IDs (updated with real Stripe Price IDs)
 const PLAN_PRICE_MAP = {
@@ -11,41 +12,28 @@ const PLAN_PRICE_MAP = {
 
 type PlanType = keyof typeof PLAN_PRICE_MAP;
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Basic CORS (MVP): allow site origins only
-  const origin = req.headers.origin || '';
-  const allowed = ['https://resumetune.io', 'http://localhost:5173'];
-  if (allowed.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Vary', 'Origin');
-  }
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'content-type, x-user-id');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(204).end();
-  }
-
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST, OPTIONS');
-    return res.status(405).json({ error: { code: 'METHOD_NOT_ALLOWED', message: 'Method Not Allowed' } });
-  }
-
+async function handler(req: AuthenticatedRequest, res: VercelResponse) {
   // Check for required environment variables
   if (!process.env.STRIPE_SECRET_KEY) {
-    return res.status(501).json({ error: { code: 'STRIPE_NOT_CONFIGURED', message: 'Stripe not configured' } });
+    return res.status(501).json({
+      error: {
+        code: 'STRIPE_NOT_CONFIGURED',
+        message: 'Stripe not configured'
+      }
+    });
   }
 
-  // Require authenticated user
-  const userId = req.headers['x-user-id'] as string;
-  if (!userId) {
-    return res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Authentication required' } });
-  }
+  // Get validated user from middleware
+  const userId = req.user.id;
+  const userEmail = req.user.email;
 
-  // Get user email for metadata (required for webhook processing)
-  const userEmail = req.headers['x-user-email'] as string;
   if (!userEmail) {
-    return res.status(400).json({ error: { code: 'MISSING_EMAIL', message: 'User email required' } });
+    return res.status(400).json({
+      error: {
+        code: 'MISSING_EMAIL',
+        message: 'User email required for checkout'
+      }
+    });
   }
 
   try {
@@ -53,13 +41,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Parse and validate request body
     const { plan } = req.body;
-    
+
     if (!plan || typeof plan !== 'string') {
-      return res.status(400).json({ error: { code: 'INVALID_PLAN', message: 'Plan is required' } });
+      return res.status(400).json({
+        error: {
+          code: 'INVALID_PLAN',
+          message: 'Plan is required'
+        }
+      });
     }
 
     if (!(plan in PLAN_PRICE_MAP)) {
-      return res.status(400).json({ error: { code: 'INVALID_PLAN', message: 'Invalid plan specified' } });
+      return res.status(400).json({
+        error: {
+          code: 'INVALID_PLAN',
+          message: 'Invalid plan specified'
+        }
+      });
     }
 
     const planType = plan as PlanType;
@@ -91,24 +89,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ url: session.url });
   } catch (error) {
     console.error('Stripe checkout error:', error);
-    
+
     if (error instanceof Stripe.errors.StripeError) {
-      return res.status(400).json({ 
-        error: { 
-          code: 'STRIPE_ERROR', 
-          message: error.message 
-        } 
+      return res.status(400).json({
+        error: {
+          code: 'STRIPE_ERROR',
+          message: error.message
+        }
       });
     }
-    
-    return res.status(500).json({ 
-      error: { 
-        code: 'INTERNAL_ERROR', 
-        message: 'Failed to create checkout session' 
-      } 
+
+    return res.status(500).json({
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to create checkout session'
+      }
     });
   }
 }
+
+// Apply middleware: CORS -> Auth -> Method validation
+export default compose([
+  withCORS,
+  withAuth,
+  (handler) => withMethods(['POST'], handler)
+])(handler);
 
 
 

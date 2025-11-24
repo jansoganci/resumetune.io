@@ -1,52 +1,30 @@
-import { VercelRequest, VercelResponse } from '@vercel/node';
+import { VercelResponse } from '@vercel/node';
 import { getSupabaseClient } from './_lib/supabase.js';
+import { compose, withCORS, withOptionalAuth, withMethods, UserRequest } from './_lib/middleware.js';
 
 // ================================================================
 // QUOTA API - SUPABASE VERSION
 // ================================================================
-// Bu API artık Redis yerine Supabase kullanır ve akıllı kredi sistemi 
-// ile entegre çalışır. Roadmap'teki yeni logic'i implement eder.
+// Uses Supabase and integrates with smart credit system
+// Supports both authenticated and anonymous users
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Basic CORS (MVP): allow site origins only
-  const origin = req.headers.origin || '';
-  const allowed = ['https://resumetune.io', 'http://localhost:5173'];
-  if (allowed.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Vary', 'Origin');
-  }
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'content-type, x-user-id');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(204).end();
-  }
-
-  if (req.method !== 'GET') {
-    res.setHeader('Allow', 'GET, OPTIONS');
-    return res.status(405).json({ error: { code: 'METHOD_NOT_ALLOWED', message: 'Method Not Allowed' } });
-  }
-
-  // Get user ID (authenticated veya anonymous)
-  const userId = req.headers['x-user-id'] as string;
-  if (!userId) {
-    return res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'User ID required' } });
-  }
-  
-  // Anonymous user detection
-  const isAnonymousUser = userId.startsWith('anon_');
-  console.log(`👤 User type: ${isAnonymousUser ? 'Anonymous' : 'Authenticated'} (${userId})`);
-
+async function handler(req: UserRequest, res: VercelResponse) {
   try {
-    // 1. Supabase client'ı oluştur
+    // 1. Get validated user ID from middleware (authenticated or anonymous)
+    const userId = req.userId;
+    const isAnonymousUser = req.isAnonymous;
+
+    console.log(`👤 User type: ${isAnonymousUser ? 'Anonymous' : 'Authenticated'} (${userId})`);
+
+    // 2. Get Supabase client
     const supabase = getSupabaseClient();
-    
-    // 2. Bugünün tarihini al
+
+    // 3. Get today's date
     const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD format
-    
+
     console.log(`📊 Fetching quota info for user ${userId} on ${today}`);
-    
-    // 3. User type'a göre farklı data fetching
+
+    // 4. Fetch data based on user type
     let todayUsage = 0;
     let userCredits = 0;
     let subscriptionPlan = null;
@@ -132,28 +110,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // 4. Smart plan type detection
-
-    // 5. AKILLI LİMİT HESAPLAMA (Roadmap'ten)
+    // 5. Smart limit calculation
     const creditsBalance = userCredits;
     const hasCredits = creditsBalance > 0;
     const hasActiveSubscription = subscriptionStatus === 'active';
     
     let dailyLimit: number;
     let planType: string;
-    
+
     if (hasCredits) {
-      dailyLimit = 999; // Sınırsız (kredi sahibi)
+      dailyLimit = 999; // Unlimited (credit holder)
       planType = 'credits';
     } else if (hasActiveSubscription) {
-      dailyLimit = 999; // Sınırsız (abonelik sahibi)
+      dailyLimit = 999; // Unlimited (subscription holder)
       planType = 'subscription';
     } else {
       dailyLimit = 3; // Free user
       planType = 'free';
     }
 
-    // 7. Response oluştur (frontend uyumlu format)
+    // 6. Build response (frontend-compatible format)
     const response = {
       quota: {
         today: todayUsage,
@@ -177,16 +153,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   } catch (error) {
     console.error('❌ Quota API error:', error);
-    
-    // Hata durumunda güvenli fallback değerleri döndür
-    return res.status(500).json({ 
-      error: { 
-        code: 'INTERNAL_ERROR', 
-        message: 'Failed to fetch quota information' 
-      } 
+
+    return res.status(500).json({
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to fetch quota information'
+      }
     });
   }
 }
+
+// Apply middleware: CORS -> OptionalAuth -> Method validation
+export default compose([
+  withCORS,
+  withOptionalAuth,
+  (handler) => withMethods(['GET'], handler)
+])(handler);
 
 // ================================================================
 // RESPONSE FORMAT DOCUMENTATION

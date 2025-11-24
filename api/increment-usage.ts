@@ -1,39 +1,25 @@
-import { VercelRequest, VercelResponse } from '@vercel/node';
+import { VercelResponse } from '@vercel/node';
 import { getSupabaseClient } from './_lib/supabase.js';
+import { compose, withCORS, withOptionalAuth, withMethods, UserRequest } from './_lib/middleware.js';
 
 // ================================================================
 // INCREMENT USAGE API ENDPOINT
 // ================================================================
-// Bu endpoint kullanıcının günlük AI kullanım sayacını 1 artırır
-// Free users için günlük limit kontrolünde kullanılır
+// Increments user's daily AI usage counter by 1
+// Used for daily limit control for free users
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Sadece POST metodunu kabul et
-  if (req.method !== 'POST') {
-    return res.status(405).json({ 
-      error: 'Method not allowed', 
-      message: 'Only POST requests are supported' 
-    });
-  }
-
+async function handler(req: UserRequest, res: VercelResponse) {
   try {
-    // 1. Kullanıcı ID'sini al
-    const userId = req.headers['x-user-id'] as string;
-    
-    if (!userId) {
-      return res.status(401).json({ 
-        error: 'Authentication required',
-        message: 'User ID is missing in headers'
-      });
-    }
+    // 1. Get validated user ID from middleware (authenticated or anonymous)
+    const userId = req.userId;
 
-    // 2. Supabase client'ı oluştur
+    // 2. Get Supabase client
     const supabase = getSupabaseClient();
-    
-    // 3. Bugünün tarihini al
+
+    // 3. Get today's date
     const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD format
-    
-    // 4. Use RPC function for all users (now supports both UUID and text user IDs)
+
+    // 4. Use RPC function for all users (supports both UUID and text user IDs)
     const { data: newCount, error: rpcError } = await supabase
       .rpc('increment_daily_usage', {
         p_user_id: userId,
@@ -42,16 +28,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (rpcError) {
       console.error('❌ Error incrementing daily usage:', rpcError);
-      return res.status(500).json({ 
-        error: 'Database error',
-        message: 'Failed to increment daily usage',
-        details: rpcError.message
+      return res.status(500).json({
+        error: {
+          code: 'DATABASE_ERROR',
+          message: 'Failed to increment daily usage',
+          details: rpcError.message
+        }
       });
     }
 
-    // 5. Başarılı response
+    // 5. Success response
     console.log(`✅ Daily usage incremented for user ${userId}: ${newCount} calls today`);
-    
+
     return res.status(200).json({
       success: true,
       message: 'Daily usage incremented successfully',
@@ -61,10 +49,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   } catch (error) {
     console.error('❌ Increment usage error:', error);
-    
+
     return res.status(500).json({
-      error: 'Internal server error',
-      message: 'An unexpected error occurred while incrementing usage'
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An unexpected error occurred while incrementing usage'
+      }
     });
   }
 }
+
+// Apply middleware: CORS -> OptionalAuth -> Method validation
+export default compose([
+  withCORS,
+  withOptionalAuth,
+  (handler) => withMethods(['POST'], handler)
+])(handler);
