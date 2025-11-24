@@ -3,6 +3,7 @@ import { UserProfile } from '../../types';
 import { cleanDocumentContent, fixCharacterEncoding, validateDocumentContent } from '../../utils/textUtils';
 import { AppError, ErrorCode } from '../../utils/errors';
 import { BaseAIService } from './core/BaseAIService';
+import { logger } from '../../utils/logger';
 
 /**
  * Resume Optimizer Service
@@ -162,14 +163,14 @@ Generate ONLY the resume content following the mandatory structure. No introduct
       // Validate resume quality - retry if malformed
       const isValid = validateDocumentContent(optimizedResume, 'resume');
       if (!isValid) {
-        console.warn('Resume validation failed, attempting to fix character issues');
+        logger.warn('Resume validation failed, attempting to fix character issues');
         // Apply character fixes again as a fallback
         optimizedResume = fixCharacterEncoding(optimizedResume);
 
         // If still invalid after fixes, log warning but proceed
         const stillInvalid = !validateDocumentContent(optimizedResume, 'resume');
         if (stillInvalid) {
-          console.warn('Resume still has formatting issues after fixes, but proceeding');
+          logger.warn('Resume still has formatting issues after fixes, but proceeding');
         }
       }
 

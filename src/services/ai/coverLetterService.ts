@@ -4,6 +4,7 @@ import { ContactInfo } from '../../components/ContactInfoInput';
 import { formatCompleteCoverLetter } from '../../utils/textUtils';
 import { AppError, ErrorCode } from '../../utils/errors';
 import { BaseAIService } from './core/BaseAIService';
+import { logger } from '../../utils/logger';
 
 /**
  * Cover Letter Service
@@ -39,16 +40,14 @@ export class CoverLetterService extends BaseAIService {
     }
 
     // Debug logs limited to dev environment to avoid leaking PII in production
-    if (import.meta.env.DEV) {
-      console.log('CoverLetterService - Received contact info (dev):', {
-        fullName: contactInfo.fullName,
-        email: contactInfo.email,
-        location: contactInfo.location,
-        hasPhone: Boolean(contactInfo.phone),
-        hasLinkedin: Boolean(contactInfo.linkedin),
-        hasPortfolio: Boolean(contactInfo.portfolio),
-      });
-    }
+    logger.debug('CoverLetterService - Received contact info', {
+      fullName: contactInfo.fullName,
+      email: contactInfo.email,
+      location: contactInfo.location,
+      hasPhone: Boolean(contactInfo.phone),
+      hasLinkedin: Boolean(contactInfo.linkedin),
+      hasPortfolio: Boolean(contactInfo.portfolio),
+    });
 
     try {
       const prompt = `Generate a professional cover letter with the following information:
@@ -99,7 +98,7 @@ ${formattedCoverLetter}
 🎉 **Your cover letter is ready!** Click the download buttons below to get PDF or DOCX versions.`;
 
     } catch (error) {
-      console.error('Cover letter generation error:', error);
+      logger.error('Cover letter generation error', error as Error);
       throw new AppError(
         ErrorCode.AiFailed,
         'AI failed to generate cover letter',

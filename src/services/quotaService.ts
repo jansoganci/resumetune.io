@@ -1,5 +1,7 @@
 import { supabase } from '../config/supabase';
 import { getAuthHeaders, getCurrentUserId, isAuthenticated } from '../utils/apiClient';
+import { LIMITS } from '../config/constants';
+import { logger } from '../utils/logger';
 
 export interface QuotaInfo {
   used: number;
@@ -17,7 +19,7 @@ export async function fetchQuotaInfo(): Promise<QuotaInfo> {
     if (userId.startsWith('anon_')) {
       return {
         used: 0, // Not needed anymore, but keep for compatibility
-        limit: 3, // Not needed anymore, but keep for compatibility
+        limit: LIMITS.ANONYMOUS_DAILY, // Not needed anymore, but keep for compatibility
         plan: 'free',
         credits: 0
       };
@@ -47,12 +49,12 @@ export async function fetchQuotaInfo(): Promise<QuotaInfo> {
 
     return quotaInfo;
   } catch (error) {
-    console.error('Failed to fetch quota info:', error);
+    logger.error('Failed to fetch quota info', error as Error);
 
     // Return default quota info on error
     return {
       used: 0,
-      limit: 3,
+      limit: LIMITS.FREE_DAILY,
       plan: 'free',
       credits: 0
     };
@@ -72,7 +74,7 @@ export async function getAccountState(): Promise<{
     // If user is anonymous, return default state
     if (userId.startsWith('anon_')) {
       return {
-        quota: { today: 0, limit: 3 },
+        quota: { today: 0, limit: LIMITS.ANONYMOUS_DAILY },
         credits: 0,
         subscription: null,
         plan_type: 'free'
@@ -93,11 +95,11 @@ export async function getAccountState(): Promise<{
 
     return await response.json();
   } catch (error) {
-    console.error('Failed to fetch account state:', error);
+    logger.error('Failed to fetch account state', error as Error);
 
     // Return default state on error
     return {
-      quota: { today: 0, limit: 3 },
+      quota: { today: 0, limit: LIMITS.FREE_DAILY },
       credits: 0,
       subscription: null,
       plan_type: 'free'
@@ -114,7 +116,7 @@ export async function getUserPlan(): Promise<'free' | 'paid'> {
     // For now, all users are on free plan
     return isLoggedIn ? 'free' : 'free';
   } catch (error) {
-    console.warn('Failed to get user plan:', error);
+    logger.warn('Failed to get user plan', { error });
     return 'free';
   }
 }

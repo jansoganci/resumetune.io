@@ -3,6 +3,8 @@ import { MatchResult } from '../../types';
 import { z } from 'zod';
 import { AppError, ErrorCode } from '../../utils/errors';
 import { BaseAIService } from './core/BaseAIService';
+import { LIMITS } from '../../config/constants';
+import { logger } from '../../utils/logger';
 
 /**
  * Job Match Service
@@ -39,7 +41,7 @@ export class JobMatchService extends BaseAIService {
       // Parse and validate JSON response
       const Schema = z.object({
         decision: z.enum(['yes', 'no']),
-        reason: z.string().max(200)
+        reason: z.string().max(LIMITS.MATCH_REASON_MAX_LENGTH)
       });
 
       const parsed = Schema.parse(JSON.parse(this.sanitizeToJson(response)));
@@ -50,7 +52,7 @@ export class JobMatchService extends BaseAIService {
         timestamp: new Date()
       };
     } catch (error) {
-      console.error('Error checking match:', error);
+      logger.error('Error checking match', error as Error);
       throw new AppError(
         ErrorCode.AiFailed,
         'AI failed to check job match',

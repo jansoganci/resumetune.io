@@ -2,6 +2,7 @@ import { CVData, JobDescription, UserProfile } from '../../../types';
 import { sendAiMessage, AiHistoryItem } from '../aiProxyClient';
 import { AppError, ErrorCode, mapUnknownError } from '../../../utils/errors';
 import { checkAndConsumeLimit, getErrorMessage } from '../../creditService';
+import { logger } from '../../../utils/logger';
 
 /**
  * Base class for all AI services
@@ -118,7 +119,7 @@ You now have the candidate's ${userProfile ? 'profile, ' : ''}CV and the job des
       const response = await sendAiMessage(this.history, prompt);
       return response;
     } catch (error) {
-      console.error(`${this.getServiceName()} error:`, error);
+      logger.error(`${this.getServiceName()} error`, error as Error);
       const mapped = mapUnknownError(error);
       throw new AppError(
         mapped.code || ErrorCode.AiFailed,
@@ -142,7 +143,7 @@ You now have the candidate's ${userProfile ? 'profile, ' : ''}CV and the job des
       this.history.push({ role: 'model', parts: [{ text: reply }] });
       return reply;
     } catch (error) {
-      console.error(`${this.getServiceName()} error:`, error);
+      logger.error(`${this.getServiceName()} error`, error as Error);
       const mapped = mapUnknownError(error);
       throw new AppError(
         mapped.code || ErrorCode.AiFailed,
@@ -169,7 +170,7 @@ You now have the candidate's ${userProfile ? 'profile, ' : ''}CV and the job des
       throw new AppError(ErrorCode.QuotaExceeded, errorMessage);
     }
 
-    console.log(`✅ Credit check passed for ${action}:`, {
+    logger.debug(`Credit check passed for ${action}`, {
       service: this.getServiceName(),
       planType: creditCheck.planType,
       creditsRemaining: creditCheck.currentCredits,
