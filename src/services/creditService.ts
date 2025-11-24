@@ -91,15 +91,15 @@ export async function getUserLimitInfo(userId: string): Promise<UserLimitInfo> {
     };
   } catch (error) {
     console.error('Failed to get user limit info, using safe fallback:', error);
-    
-    // 🛠️ GRACEFUL FALLBACK - Return permissive defaults instead of blocking
-    // This prevents quota API failures from cascading to AI endpoint failures
+
+    // 🔒 FAIL-CLOSED SECURITY - Deny access on error to prevent abuse
+    // When quota check fails, deny access instead of granting unlimited access
     return {
       hasCredits: false,
       hasActiveSubscription: false,
       creditsBalance: 0,
-      dailyUsage: 0,
-      dailyLimit: 999, // ✅ Allow unlimited for fallback case
+      dailyUsage: 999, // Set high to indicate limit exceeded
+      dailyLimit: 0, // 🔒 Deny access when quota check fails (fail-closed)
       planType: 'free'
     };
   }

@@ -5,6 +5,7 @@
 // Isolated from src/ to avoid cross-boundary import issues
 
 import { VercelRequest, VercelResponse } from '@vercel/node';
+import { randomUUID } from 'crypto';
 import { getSupabaseClient } from './supabase.js';
 import { extractClientIP } from './utils.js';
 
@@ -429,10 +430,10 @@ export class CaptchaService {
   }
 
   /**
-   * Generate a unique challenge ID
+   * Generate a unique challenge ID using cryptographically secure random
    */
   generateChallengeId(): string {
-    return `captcha_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return `captcha_${Date.now()}_${randomUUID()}`;
   }
 
   /**

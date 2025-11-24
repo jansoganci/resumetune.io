@@ -26,8 +26,8 @@ export async function getAuthHeaders(): Promise<Record<string, string>> {
   // Anonymous user - send anonymous ID
   let anonId = localStorage.getItem('anon-id');
   if (!anonId) {
-    // Generate new anonymous ID
-    anonId = `anon_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+    // Generate new anonymous ID using cryptographically secure random
+    anonId = `anon_${Date.now()}_${crypto.randomUUID()}`;
     localStorage.setItem('anon-id', anonId);
   }
   headers['x-user-id'] = anonId;
@@ -53,7 +53,8 @@ export async function getCurrentUserId(): Promise<string> {
   // Return anonymous ID
   let anonId = localStorage.getItem('anon-id');
   if (!anonId) {
-    anonId = `anon_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+    // Generate new anonymous ID using cryptographically secure random
+    anonId = `anon_${Date.now()}_${crypto.randomUUID()}`;
     localStorage.setItem('anon-id', anonId);
   }
   return anonId;
