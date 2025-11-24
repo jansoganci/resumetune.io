@@ -5,6 +5,7 @@
 // Ensures type safety and prevents injection attacks
 
 import { z } from 'zod';
+import { LIMITS, VALID_AI_MODELS, VALID_PLAN_IDS } from '../../src/config/constants';
 
 // ================================================================
 // CONSUME CREDIT SCHEMA
@@ -24,12 +25,10 @@ export const consumeCreditSchema = z.object({
 // Used by: /api/stripe-checkout.ts
 // Validates plan selection for Stripe checkout
 
-const VALID_PLANS = ['credits_50', 'credits_200', 'sub_100', 'sub_300'] as const;
-
 export const stripeCheckoutSchema = z.object({
-  plan: z.enum(VALID_PLANS, {
+  plan: z.enum(VALID_PLAN_IDS as any, {
     errorMap: () => ({
-      message: 'Plan must be one of: credits_50, credits_200, sub_100, sub_300'
+      message: `Plan must be one of: ${VALID_PLAN_IDS.join(', ')}`
     })
   })
 }).strict();
@@ -55,27 +54,20 @@ const chatMessageSchema = z.object({
   ).min(1, 'Parts array must contain at least one item')
 });
 
-// Supported AI models
-const VALID_MODELS = [
-  'gemini-1.5-flash',
-  'gemini-1.5-pro',
-  'gemini-pro'
-] as const;
-
 export const aiProxySchema = z.object({
   message: z.string()
-    .min(1, 'Message is required and cannot be empty')
-    .max(10000, 'Message cannot exceed 10,000 characters'),
+    .min(LIMITS.AI_MESSAGE_MIN_LENGTH, 'Message is required and cannot be empty')
+    .max(LIMITS.AI_MESSAGE_MAX_LENGTH, `Message cannot exceed ${LIMITS.AI_MESSAGE_MAX_LENGTH} characters`),
 
   history: z.array(chatMessageSchema)
     .optional()
     .default([]),
 
-  model: z.enum(VALID_MODELS, {
+  model: z.enum(VALID_AI_MODELS as any, {
     errorMap: () => ({
-      message: 'Model must be one of: gemini-1.5-flash, gemini-1.5-pro, gemini-pro'
+      message: `Model must be one of: ${VALID_AI_MODELS.join(', ')}`
     })
-  }).optional().default('gemini-1.5-flash')
+  }).optional().default(VALID_AI_MODELS[0])
 }).strict();
 
 // Type export for TypeScript
