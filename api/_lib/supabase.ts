@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { logger } from '../../src/utils/logger.js';
 
 // ================================================================
 // ISOLATED SUPABASE FUNCTIONS FOR API ENDPOINTS
@@ -42,11 +43,14 @@ export async function recordCreditTransaction(transaction: CreditTransaction): P
     .insert([transaction]);
     
   if (error) {
-    console.error('Failed to record credit transaction:', error);
+    logger.error('Failed to record credit transaction', error as Error, { userId: transaction.user_id });
     throw new Error(`Database error: ${error.message}`);
   }
-  
-  console.log(`Recorded credit transaction: ${transaction.credits_added} credits for user ${transaction.user_id}`);
+
+  logger.debug('Recorded credit transaction', {
+    userId: transaction.user_id.substring(0, 8),
+    creditsAdded: transaction.credits_added
+  });
 }
 
 /**
@@ -63,7 +67,7 @@ export async function updateUserCredits(userId: string, creditsToAdd: number): P
     .single();
     
   if (fetchError) {
-    console.error('Failed to fetch user credits:', fetchError);
+    logger.error('Failed to fetch user credits', fetchError as Error, { userId: userId.substring(0, 8) });
     throw new Error(`Failed to fetch user: ${fetchError.message}`);
   }
   
@@ -80,11 +84,15 @@ export async function updateUserCredits(userId: string, creditsToAdd: number): P
     .eq('id', userId);
     
   if (updateError) {
-    console.error('Failed to update user credits:', updateError);
+    logger.error('Failed to update user credits', updateError as Error, { userId: userId.substring(0, 8) });
     throw new Error(`Failed to update credits: ${updateError.message}`);
   }
-  
-  console.log(`Updated user ${userId} credits: ${currentBalance} → ${newBalance}`);
+
+  logger.debug('Updated user credits', {
+    userId: userId.substring(0, 8),
+    currentBalance,
+    newBalance
+  });
   return newBalance;
 }
 
@@ -118,11 +126,15 @@ export async function updateUserSubscription(
     .eq('id', userId);
     
   if (error) {
-    console.error('Failed to update user subscription:', error);
+    logger.error('Failed to update user subscription', error as Error, { userId: userId.substring(0, 8) });
     throw new Error(`Failed to update subscription: ${error.message}`);
   }
-  
-  console.log(`User ${userId} subscription updated successfully: ${planType} (${status})`);
+
+  logger.debug('User subscription updated', {
+    userId: userId.substring(0, 8),
+    planType,
+    status
+  });
 }
 
 /**
@@ -138,7 +150,7 @@ export async function getUserCredits(userId: string): Promise<number> {
     .single();
     
   if (error) {
-    console.error('Failed to fetch user credits from Supabase:', error);
+    logger.error('Failed to fetch user credits from Supabase', error as Error, { userId: userId.substring(0, 8) });
     return 0; // Fallback
   }
   

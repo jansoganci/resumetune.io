@@ -1,5 +1,7 @@
 import { VercelRequest } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
+import { HTTP_STATUS, ERROR_CODES } from '../../src/config/constants.js';
+import { logger } from '../../src/utils/logger.js';
 
 /**
  * Result of session validation
@@ -38,13 +40,13 @@ export async function validateSession(req: VercelRequest): Promise<ValidateSessi
   const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    console.error('Missing Supabase environment variables for auth validation');
+    logger.error('Missing Supabase environment variables for auth validation');
     return {
       user: null,
       error: {
-        code: 'CONFIGURATION_ERROR',
+        code: ERROR_CODES.CONFIGURATION_ERROR,
         message: 'Authentication service not configured',
-        status: 500
+        status: HTTP_STATUS.INTERNAL_SERVER_ERROR
       }
     };
   }
@@ -70,7 +72,7 @@ export async function validateSession(req: VercelRequest): Promise<ValidateSessi
           token = decoded.access_token;
         } catch (error) {
           // Invalid cookie format, continue without token
-          console.warn('Failed to parse auth cookie:', error);
+          logger.warn('Failed to parse auth cookie', { error });
         }
       }
     }
@@ -81,9 +83,9 @@ export async function validateSession(req: VercelRequest): Promise<ValidateSessi
     return {
       user: null,
       error: {
-        code: 'UNAUTHENTICATED',
+        code: ERROR_CODES.UNAUTHORIZED,
         message: 'No authentication token provided',
-        status: 401
+        status: HTTP_STATUS.UNAUTHORIZED
       }
     };
   }
@@ -97,13 +99,13 @@ export async function validateSession(req: VercelRequest): Promise<ValidateSessi
     const { data: { user }, error } = await supabase.auth.getUser(token);
 
     if (error) {
-      console.warn('Token validation failed:', error.message);
+      logger.warn('Token validation failed', { message: error.message });
       return {
         user: null,
         error: {
-          code: 'INVALID_TOKEN',
+          code: ERROR_CODES.INVALID_TOKEN,
           message: 'Invalid or expired authentication token',
-          status: 401
+          status: HTTP_STATUS.UNAUTHORIZED
         }
       };
     }
@@ -112,9 +114,9 @@ export async function validateSession(req: VercelRequest): Promise<ValidateSessi
       return {
         user: null,
         error: {
-          code: 'USER_NOT_FOUND',
+          code: ERROR_CODES.USER_NOT_FOUND,
           message: 'User not found',
-          status: 401
+          status: HTTP_STATUS.UNAUTHORIZED
         }
       };
     }
@@ -130,13 +132,13 @@ export async function validateSession(req: VercelRequest): Promise<ValidateSessi
     };
 
   } catch (error) {
-    console.error('Session validation error:', error);
+    logger.error('Session validation error', error as Error);
     return {
       user: null,
       error: {
-        code: 'AUTH_ERROR',
+        code: ERROR_CODES.INTERNAL_ERROR,
         message: 'Authentication service error',
-        status: 500
+        status: HTTP_STATUS.INTERNAL_SERVER_ERROR
       }
     };
   }

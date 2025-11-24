@@ -9,6 +9,8 @@ import { randomUUID } from 'crypto';
 import { z } from 'zod';
 import { getSupabaseClient } from './supabase.js';
 import { extractClientIP } from './utils.js';
+import { HTTP_STATUS, ERROR_CODES } from '../../src/config/constants.js';
+import { logger } from '../../src/utils/logger.js';
 
 // ================================================================
 // RATE LIMITING INTERFACES & FUNCTIONS
@@ -46,7 +48,7 @@ export async function checkIPRateLimit(
       });
     
     if (error) {
-      console.error('Rate limit check failed:', error);
+      logger.error('Rate limit check failed', error as Error, { clientIP });
       // On error, allow the request to proceed (fail open for safety)
       return {
         allowed: true,
@@ -75,7 +77,7 @@ export async function checkIPRateLimit(
     };
     
   } catch (error) {
-    console.error('Rate limit middleware error:', error);
+    logger.error('Rate limit middleware error', error as Error);
     // On error, allow the request to proceed (fail open for safety)
     return {
       allowed: true,
@@ -144,7 +146,7 @@ export async function trackAnonymousUser(
       });
     
     if (error) {
-      console.error('Anonymous user tracking failed:', error);
+      logger.error('Anonymous user tracking failed', error as Error, { anonymousId });
       // Return safe defaults on error
       return {
         isAbuse: false,
@@ -173,7 +175,7 @@ export async function trackAnonymousUser(
     };
     
   } catch (error) {
-    console.error('Anonymous abuse detection error:', error);
+    logger.error('Anonymous abuse detection error', error as Error);
     // Return safe defaults on error
     return {
       isAbuse: false,
@@ -205,7 +207,7 @@ export async function checkAnonymousAbuse(
       });
     
     if (error) {
-      console.error('Anonymous abuse check failed:', error);
+      logger.error('Anonymous abuse check failed', error as Error);
       // Return safe defaults on error
       return {
         isAbuse: false,
@@ -234,7 +236,7 @@ export async function checkAnonymousAbuse(
     };
     
   } catch (error) {
-    console.error('Anonymous abuse check error:', error);
+    logger.error('Anonymous abuse check error', error as Error);
     // Return safe defaults on error
     return {
       isAbuse: false,
@@ -312,13 +314,13 @@ export class CaptchaService {
   constructor() {
     this.secretKey = process.env.HCAPTCHA_SECRET_KEY || '';
     this.siteKey = process.env.HCAPTCHA_SITE_KEY || '';
-    
+
     if (!this.secretKey) {
-      console.warn('HCAPTCHA_SECRET_KEY not set - CAPTCHA verification will fail');
+      logger.warn('HCAPTCHA_SECRET_KEY not set - CAPTCHA verification will fail');
     }
-    
+
     if (!this.siteKey) {
-      console.warn('HCAPTCHA_SITE_KEY not set - CAPTCHA frontend will not work');
+      logger.warn('HCAPTCHA_SITE_KEY not set - CAPTCHA frontend will not work');
     }
   }
 
@@ -384,8 +386,8 @@ export class CaptchaService {
       }
 
     } catch (error) {
-      console.error('CAPTCHA verification error:', error);
-      
+      logger.error('CAPTCHA verification error', error as Error);
+
       return {
         success: false,
         error: 'CAPTCHA verification failed'
@@ -497,7 +499,7 @@ export async function createEnhancedCaptchaChallenge(
     };
     
   } catch (error) {
-    console.error('Failed to create enhanced CAPTCHA challenge:', error);
+    logger.error('Failed to create enhanced CAPTCHA challenge', error as Error);
     return null;
   }
 }
@@ -523,8 +525,8 @@ export async function checkCaptchaBypass(
     };
     
   } catch (error) {
-    console.error('CAPTCHA bypass check error:', error);
-    
+    logger.error('CAPTCHA bypass check error', error as Error);
+
     // On error, deny bypass (fail closed for security)
     return {
       allowed: false,
@@ -586,8 +588,8 @@ export async function checkConditionalCaptcha(
     };
     
   } catch (error) {
-    console.error('Conditional CAPTCHA check error:', error);
-    
+    logger.error('Conditional CAPTCHA check error', error as Error);
+
     // On error, allow request to proceed (fail open for safety)
     return {
       captchaRequired: false,
@@ -615,7 +617,7 @@ export async function getAbuseProtectionStatus(): Promise<any> {
       .rpc('check_system_health');
 
     if (healthError) {
-      console.error('Failed to get system health:', healthError);
+      logger.error('Failed to get system health', healthError as Error);
       return { error: 'Failed to get system health' };
     }
 
@@ -624,7 +626,7 @@ export async function getAbuseProtectionStatus(): Promise<any> {
       .rpc('get_abuse_statistics', { p_hours_back: 24 });
 
     if (abuseError) {
-      console.error('Failed to get abuse statistics:', abuseError);
+      logger.error('Failed to get abuse statistics', abuseError as Error);
       return { error: 'Failed to get abuse statistics' };
     }
 
@@ -635,7 +637,7 @@ export async function getAbuseProtectionStatus(): Promise<any> {
     };
 
   } catch (error) {
-    console.error('Failed to get abuse protection status:', error);
+    logger.error('Failed to get abuse protection status', error as Error);
     return { error: 'Failed to get abuse protection status' };
   }
 }
@@ -917,8 +919,8 @@ export function withValidation<T extends z.ZodType>(schema: T) {
         // Continue to next handler
         return handler(req, res);
       } catch (error) {
-        console.error('Validation middleware error:', error);
-        return res.status(500).json({
+        logger.error('Validation middleware error', error as Error);
+        return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
           error: {
             code: 'VALIDATION_ERROR',
             message: 'Failed to validate request'
