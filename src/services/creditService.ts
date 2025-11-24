@@ -1,4 +1,5 @@
 import { supabase } from '../config/supabase';
+import { getAuthHeaders, getCurrentUserId as getAuthUserId } from '../utils/apiClient';
 
 // ================================================================
 // CREDIT SERVICE - AKILLI KREDİ YÖNETİMİ
@@ -52,13 +53,13 @@ export function shouldConsumeCredit(actionType: string): boolean {
  */
 export async function getUserLimitInfo(userId: string): Promise<UserLimitInfo> {
   try {
+    // Get authentication headers (JWT token or anonymous ID)
+    const headers = await getAuthHeaders();
+
     // Backend API'sinden kullanıcı bilgilerini al
     const response = await fetch('/api/quota', {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-user-id': userId,
-      },
+      headers,
     });
 
     if (!response.ok) {
@@ -104,54 +105,20 @@ export async function getUserLimitInfo(userId: string): Promise<UserLimitInfo> {
   }
 }
 
-/**
- * Anonymous user ID generation and storage
- */
-function generateAnonymousId(): string {
-  // Browser'da persistent anonymous ID oluştur
-  const storageKey = 'anonymous_user_id';
-  let anonId = localStorage.getItem(storageKey);
-  
-  if (!anonId) {
-    anonId = 'anon_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-    localStorage.setItem(storageKey, anonId);
-  }
-  
-  return anonId;
-}
-
-/**
- * Kullanıcının ID'sini çeker - authenticated veya anonymous
- */
-async function getCurrentUserId(): Promise<string> {
-  try {
-    // İlk önce authenticated user kontrolü
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (session?.user?.id) {
-      return session.user.id; // Authenticated user
-    }
-    
-    // Anonymous user için persistent ID
-    return generateAnonymousId();
-    
-  } catch (error) {
-    console.warn('Failed to get current user ID, using anonymous:', error);
-    return generateAnonymousId();
-  }
-}
+// Removed duplicate getCurrentUserId and generateAnonymousId functions
+// Now using centralized version from utils/apiClient
 
 /**
  * Backend API'sı üzerinden kredi tüketir
  */
 async function consumeCredit(userId: string): Promise<boolean> {
   try {
+    // Get authentication headers (JWT token or anonymous ID)
+    const headers = await getAuthHeaders();
+
     const response = await fetch('/api/consume-credit', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-user-id': userId,
-      },
+      headers,
       body: JSON.stringify({ userId })
     });
 
@@ -173,12 +140,12 @@ async function consumeCredit(userId: string): Promise<boolean> {
  */
 async function incrementDailyUsage(userId: string): Promise<boolean> {
   try {
+    // Get authentication headers (JWT token or anonymous ID)
+    const headers = await getAuthHeaders();
+
     const response = await fetch('/api/increment-usage', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-user-id': userId,
-      },
+      headers,
       body: JSON.stringify({ userId })
     });
 
@@ -217,7 +184,7 @@ export async function checkAndConsumeLimit(
   
   try {
     // 1. Kullanıcı ID'si kontrolü (authenticated veya anonymous)
-    const currentUserId = userId || await getCurrentUserId();
+    const currentUserId = userId || await getAuthUserId();
 
     // 2. Kullanıcının mevcut durumunu al
     const userInfo = await getUserLimitInfo(currentUserId);

@@ -1,4 +1,5 @@
 import { supabase } from '../config/supabase';
+import { getAuthHeaders, getCurrentUserId, isAuthenticated } from '../utils/apiClient';
 
 export interface QuotaInfo {
   used: number;
@@ -8,31 +9,10 @@ export interface QuotaInfo {
   planType?: 'free' | 'credits' | 'subscription'; // Yeni alan
 }
 
-// Get user ID from Supabase session or generate anonymous ID
-async function getUserId(): Promise<string> {
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (session?.user?.id) {
-      return session.user.id;
-    }
-  } catch (error) {
-    console.warn('Failed to get user from Supabase session:', error);
-  }
-  
-  // Fallback to anonymous ID stored in localStorage
-  let anonId = localStorage.getItem('anon-id');
-  if (!anonId) {
-    anonId = `anon_${Date.now()}_${Math.random().toString(36).substring(2)}`;
-    localStorage.setItem('anon-id', anonId);
-  }
-  return anonId;
-}
-
 export async function fetchQuotaInfo(): Promise<QuotaInfo> {
   try {
-    const userId = await getUserId();
-    
+    const userId = await getCurrentUserId();
+
     // If user is anonymous, return default data
     if (userId.startsWith('anon_')) {
       return {
@@ -42,14 +22,13 @@ export async function fetchQuotaInfo(): Promise<QuotaInfo> {
         credits: 0
       };
     }
-    
+
     // For authenticated users, call the real API
+    const headers = await getAuthHeaders();
+
     const response = await fetch('/api/quota', {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-user-id': userId,
-      },
+      headers,
     });
 
     if (!response.ok) {
@@ -57,7 +36,7 @@ export async function fetchQuotaInfo(): Promise<QuotaInfo> {
     }
 
     const data = await response.json();
-    
+
     const quotaInfo: QuotaInfo = {
       used: data.quota.today, // Keep for compatibility but not displayed
       limit: data.quota.limit, // Keep for compatibility but not displayed
@@ -65,11 +44,11 @@ export async function fetchQuotaInfo(): Promise<QuotaInfo> {
       credits: data.credits, // This is what AccountPage displays
       planType: data.plan_type
     };
-    
+
     return quotaInfo;
   } catch (error) {
     console.error('Failed to fetch quota info:', error);
-    
+
     // Return default quota info on error
     return {
       used: 0,
@@ -88,8 +67,8 @@ export async function getAccountState(): Promise<{
   plan_type?: 'free' | 'credits' | 'subscription';
 }> {
   try {
-    const userId = await getUserId();
-    
+    const userId = await getCurrentUserId();
+
     // If user is anonymous, return default state
     if (userId.startsWith('anon_')) {
       return {
@@ -99,14 +78,13 @@ export async function getAccountState(): Promise<{
         plan_type: 'free'
       };
     }
-    
+
     // For authenticated users, call the real API
+    const headers = await getAuthHeaders();
+
     const response = await fetch('/api/quota', {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-user-id': userId,
-      },
+      headers,
     });
 
     if (!response.ok) {
@@ -116,7 +94,7 @@ export async function getAccountState(): Promise<{
     return await response.json();
   } catch (error) {
     console.error('Failed to fetch account state:', error);
-    
+
     // Return default state on error
     return {
       quota: { today: 0, limit: 3 },
@@ -130,9 +108,8 @@ export async function getAccountState(): Promise<{
 // Function to get current user's plan type
 export async function getUserPlan(): Promise<'free' | 'paid'> {
   try {
-    const userId = await getUserId();
-    const isLoggedIn = userId.startsWith('anon_') === false;
-    
+    const isLoggedIn = await isAuthenticated();
+
     // TODO: In production, check user's plan from database
     // For now, all users are on free plan
     return isLoggedIn ? 'free' : 'free';

@@ -3,6 +3,7 @@ import { Check, Zap, CreditCard, Users, Star } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../components/ToastProvider';
 import { supabase } from '../config/supabase';
+import { getAuthHeaders } from '../utils/apiClient';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 
@@ -30,13 +31,10 @@ export default function PricingPage() {
       }
 
       // User is authenticated, proceed with checkout
-      const response = await fetch('/api/stripe/create-checkout-session', {
+      const headers = await getAuthHeaders();
+      const response = await fetch('/api/stripe-checkout', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-id': session.user.id,
-          'x-user-email': session.user.email || '',
-        },
+        headers,
         body: JSON.stringify({ plan }),
       });
 
