@@ -2,6 +2,10 @@ import { VercelResponse } from '@vercel/node';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { compose, withCORS, withOptionalAuth, withMethods, withValidation, UserRequest } from '../_lib/middleware.js';
 import { aiProxySchema } from '../_lib/schemas.js';
+import { LIMITS, AI_MODELS, ERROR_CODES, HTTP_STATUS } from '../../src/config/constants';
+import { createApiLogger } from '../../src/utils/logger';
+
+const log = createApiLogger('/api/ai/proxy');
 
 // ================================================================
 // AI PROXY ENDPOINT
@@ -13,10 +17,10 @@ import { aiProxySchema } from '../_lib/schemas.js';
 async function handler(req: UserRequest, res: VercelResponse) {
   // Check for required environment variables
   if (!process.env.GEMINI_API_KEY) {
-    console.error('Missing GEMINI_API_KEY environment variable');
-    return res.status(501).json({
+    log.error('Missing GEMINI_API_KEY environment variable');
+    return res.status(HTTP_STATUS.NOT_IMPLEMENTED).json({
       error: {
-        code: 'CONFIGURATION_ERROR',
+        code: ERROR_CODES.CONFIGURATION_ERROR,
         message: 'AI service not configured'
       }
     });
@@ -30,7 +34,11 @@ async function handler(req: UserRequest, res: VercelResponse) {
     const userId = req.userId;
     const isAnonymous = req.isAnonymous;
 
-    console.log(`🤖 AI request from user ${userId?.substring(0, 8)}... with model ${model}`);
+    log.info('AI request received', {
+      userId: userId?.substring(0, 8),
+      model,
+      isAnonymous
+    });
 
     // Check credits/quota before processing
     
@@ -49,21 +57,24 @@ async function handler(req: UserRequest, res: VercelResponse) {
           .single();
           
         const currentUsage = usage?.ai_calls_count || 0;
-        if (currentUsage >= 3) {
-          return res.status(429).json({
+        if (currentUsage >= LIMITS.ANONYMOUS_DAILY) {
+          log.warn('Anonymous user quota exceeded', { userId: userId?.substring(0, 8), currentUsage });
+          return res.status(HTTP_STATUS.TOO_MANY_REQUESTS).json({
             error: {
-              code: 'QUOTA_EXCEEDED',
-              message: 'Daily limit of 3 AI calls reached'
+              code: ERROR_CODES.QUOTA_EXCEEDED,
+              message: `Daily limit of ${LIMITS.ANONYMOUS_DAILY} AI calls reached`
             }
           });
         }
       } catch (error) {
-        console.warn('⚠️ Quota check failed for anonymous user, proceeding...');
+        log.warn('Quota check failed for anonymous user, proceeding', { userId: userId?.substring(0, 8) });
       }
     } else {
       // For authenticated users: NO credit consumption here
       // Credits are consumed by frontend checkAndConsumeLimit() before calling this API
-      console.log(`🔍 AI request for authenticated user ${userId?.substring(0, 8)}... (credits already consumed by frontend)`);
+      log.debug('AI request for authenticated user (credits pre-consumed)', {
+        userId: userId?.substring(0, 8)
+      });
     }
 
     // Initialize Gemini AI
@@ -80,8 +91,8 @@ async function handler(req: UserRequest, res: VercelResponse) {
     const chat = geminiModel.startChat({
       history: chatHistory,
       generationConfig: {
-        maxOutputTokens: 1400,
-        temperature: 0.7,
+        maxOutputTokens: AI_MODELS.MAX_OUTPUT_TOKENS,
+        temperature: AI_MODELS.TEMPERATURE,
       },
     });
 
@@ -94,7 +105,11 @@ async function handler(req: UserRequest, res: VercelResponse) {
       throw new Error('Empty response from AI model');
     }
 
-    console.log(`✅ AI response generated successfully (${text.length} chars)`);
+    log.info('AI response generated successfully', {
+      userId: userId?.substring(0, 8),
+      responseLength: text.length,
+      model
+    });
 
     // Increment usage for anonymous users (after successful AI call)
     if (isAnonymous) {
@@ -108,9 +123,9 @@ async function handler(req: UserRequest, res: VercelResponse) {
           p_usage_date: today
         });
         
-        console.log(`📊 Usage incremented for anonymous user ${userId?.substring(0, 8)}...`);
+        log.debug('Usage incremented for anonymous user', { userId: userId?.substring(0, 8) });
       } catch (error) {
-        console.warn('⚠️ Failed to increment usage for anonymous user:', error);
+        log.warn('Failed to increment usage for anonymous user', { userId: userId?.substring(0, 8), error });
       }
     }
 
@@ -123,31 +138,33 @@ async function handler(req: UserRequest, res: VercelResponse) {
     });
 
   } catch (error) {
-    console.error('❌ AI Proxy error:', error);
+    log.error('AI Proxy error', error as Error, {
+      userId: req.userId?.substring(0, 8)
+    });
 
     // Handle specific error types
     if (error instanceof Error) {
       if (error.message.includes('API_KEY')) {
-        return res.status(401).json({
+        return res.status(HTTP_STATUS.UNAUTHORIZED).json({
           error: {
-            code: 'INVALID_API_KEY',
+            code: ERROR_CODES.INVALID_API_KEY,
             message: 'Invalid API key'
           }
         });
       }
       if (error.message.includes('quota') || error.message.includes('limit')) {
-        return res.status(429).json({
+        return res.status(HTTP_STATUS.TOO_MANY_REQUESTS).json({
           error: {
-            code: 'QUOTA_EXCEEDED',
+            code: ERROR_CODES.QUOTA_EXCEEDED,
             message: 'AI service quota exceeded'
           }
         });
       }
     }
 
-    return res.status(500).json({
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       error: {
-        code: 'AI_ERROR',
+        code: ERROR_CODES.AI_ERROR,
         message: 'AI service temporarily unavailable'
       }
     });
