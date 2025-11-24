@@ -1,33 +1,19 @@
-import { VercelRequest, VercelResponse } from '@vercel/node';
+import { VercelResponse } from '@vercel/node';
 import { getSupabaseClient } from './_lib/supabase.js';
+import { compose, withCORS, withAuth, withMethods, AuthenticatedRequest } from './_lib/middleware.js';
 
 // ================================================================
 // CONSUME CREDIT API ENDPOINT
 // ================================================================
-// Bu endpoint kullanıcının kredisini 1 azaltır
-// Frontend'den checkAndConsumeLimit fonksiyonu tarafından çağrılır
+// This endpoint deducts 1 credit from the authenticated user's balance
+// Called by frontend checkAndConsumeLimit function
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Sadece POST metodunu kabul et
-  if (req.method !== 'POST') {
-    return res.status(405).json({ 
-      error: 'Method not allowed', 
-      message: 'Only POST requests are supported' 
-    });
-  }
-
+async function handler(req: AuthenticatedRequest, res: VercelResponse) {
   try {
-    // 1. Kullanıcı ID'sini al
-    const userId = req.headers['x-user-id'] as string;
-    
-    if (!userId) {
-      return res.status(401).json({ 
-        error: 'Authentication required',
-        message: 'User ID is missing in headers'
-      });
-    }
+    // 1. Get validated user ID from authenticated session
+    const userId = req.user.id;
 
-    // 2. Supabase client'ı oluştur
+    // 2. Get Supabase client
     const supabase = getSupabaseClient();
     
     // 3. Kullanıcının mevcut kredi bakiyesini kontrol et
@@ -39,31 +25,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (userError) {
       console.error('❌ Error fetching user:', userError);
-      return res.status(500).json({ 
-        error: 'Database error',
-        message: 'Failed to fetch user information'
+      return res.status(500).json({
+        error: {
+          code: 'DATABASE_ERROR',
+          message: 'Failed to fetch user information'
+        }
       });
     }
 
     if (!user) {
-      return res.status(404).json({ 
-        error: 'User not found',
-        message: 'User does not exist in database'
+      return res.status(404).json({
+        error: {
+          code: 'USER_NOT_FOUND',
+          message: 'User does not exist in database'
+        }
       });
     }
 
-    // 4. Kredi kontrolü
+    // 4. Check credit balance
     const currentCredits = user.credits_balance || 0;
-    
+
     if (currentCredits <= 0) {
-      return res.status(400).json({ 
-        error: 'Insufficient credits',
-        message: 'No credits remaining',
+      return res.status(400).json({
+        error: {
+          code: 'INSUFFICIENT_CREDITS',
+          message: 'No credits remaining'
+        },
         currentCredits: 0
       });
     }
 
-    // 5. Kredi tüket (1 azalt)
+    // 5. Consume credit (decrement by 1)
     const newBalance = Math.max(0, currentCredits - 1);
     
     const { error: updateError } = await supabase
@@ -76,15 +68,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (updateError) {
       console.error('❌ Error updating credits:', updateError);
-      return res.status(500).json({ 
-        error: 'Update failed',
-        message: 'Failed to update credit balance'
+      return res.status(500).json({
+        error: {
+          code: 'UPDATE_FAILED',
+          message: 'Failed to update credit balance'
+        }
       });
     }
 
-    // 6. Başarılı response
+    // 6. Success response
     console.log(`✅ Credit consumed for user ${userId}: ${currentCredits} → ${newBalance}`);
-    
+
     return res.status(200).json({
       success: true,
       message: 'Credit consumed successfully',
@@ -95,10 +89,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   } catch (error) {
     console.error('❌ Consume credit error:', error);
-    
+
     return res.status(500).json({
-      error: 'Internal server error',
-      message: 'An unexpected error occurred while consuming credit'
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An unexpected error occurred while consuming credit'
+      }
     });
   }
 }
+
+// Apply middleware: CORS -> Auth -> Method validation
+export default compose([
+  withCORS,
+  withAuth,
+  (handler) => withMethods(['POST'], handler)
+])(handler);
