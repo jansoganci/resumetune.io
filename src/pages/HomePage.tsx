@@ -5,6 +5,7 @@
 // Reduced from 433 → ~140 lines by extracting context, hooks, and sections
 
 import React, { useState, useRef } from 'react';
+import { Sparkles } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { InfoModal } from '../components/InfoModal';
@@ -28,7 +29,11 @@ function HomePageContent() {
     cvData,
     jobDescription,
     hasCompleteProfile,
+    fillSampleData,
   } = useProfile();
+
+  // Check if profile is empty (for showing sample data prompt)
+  const isProfileEmpty = !userProfile && !contactInfo && !cvData;
 
   // Gemini service for AI operations
   const geminiService = useGeminiService();
@@ -58,6 +63,30 @@ function HomePageContent() {
       <Header onInfoClick={() => setIsInfoModalOpen(true)} />
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        {/* Empty State: Try Sample Data Banner */}
+        {isProfileEmpty && (
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg p-6 shadow-sm animate-fadeInUp">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex-1 text-center md:text-left">
+                <h3 className="text-lg font-semibold text-blue-900 mb-2 flex items-center justify-center md:justify-start">
+                  <Sparkles className="w-5 h-5 mr-2 text-blue-600" />
+                  New here? Try it instantly!
+                </h3>
+                <p className="text-sm text-blue-800">
+                  See ResumeTune in action with sample data. Click the button to auto-fill everything and get results in seconds.
+                </p>
+              </div>
+              <button
+                onClick={fillSampleData}
+                className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 active:scale-95 transition-all duration-150 shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 whitespace-nowrap min-h-[48px] flex items-center space-x-2"
+              >
+                <Sparkles className="w-5 h-5" />
+                <span>Try Sample Data</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Profile Management Section */}
         <ProfileSection />
 
