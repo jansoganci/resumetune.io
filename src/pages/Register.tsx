@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Zap, Mail, Lock, Eye, EyeOff, User } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../components/ToastProvider'
+import { LEGAL_URLS } from '../config/constants'
 
 export default function Register() {
   const [email, setEmail] = useState('')
@@ -177,11 +178,11 @@ export default function Register() {
           <div className="mt-6">
             <div className="text-center text-xs text-gray-500">
               By creating an account, you agree to our{' '}
-              <a href="/legal/terms-of-service.html" className="text-blue-600 hover:text-blue-500">
+              <a href={LEGAL_URLS.TERMS_OF_SERVICE} className="text-blue-600 hover:text-blue-500">
                 Terms of Service
               </a>{' '}
               and{' '}
-              <a href="/legal/privacy-policy.html" className="text-blue-600 hover:text-blue-500">
+              <a href={LEGAL_URLS.PRIVACY_POLICY} className="text-blue-600 hover:text-blue-500">
                 Privacy Policy
               </a>
             </div>

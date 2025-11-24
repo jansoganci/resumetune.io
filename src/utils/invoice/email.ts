@@ -57,12 +57,16 @@ export async function sendInvoiceEmail(
         }
       ]
     });
-    
-    console.log('Invoice email sent successfully:', result.data?.id || 'unknown');
+
+    import('../logger').then(({ logger }) => {
+      logger.info('Invoice email sent successfully', { messageId: result.data?.id || 'unknown' });
+    }).catch(() => {});
     return true;
-    
+
   } catch (error) {
-    console.error('Failed to send invoice email:', error);
+    import('../logger').then(({ logger }) => {
+      logger.error('Failed to send invoice email', error instanceof Error ? error : { error });
+    }).catch(() => {});
     return false;
   }
 }

@@ -123,7 +123,10 @@ export function getAllBlogPosts(): BlogPost[] {
         slug: frontmatter.slug
       });
     } catch (error) {
-      console.error(`Error parsing blog post ${path}:`, error);
+      // Import logger dynamically to avoid circular dependencies
+      import('./logger').then(({ logger }) => {
+        logger.error('Error parsing blog post', error instanceof Error ? error : new Error(String(error)), { path });
+      }).catch(() => {});
     }
   }
   

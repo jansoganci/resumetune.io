@@ -8,6 +8,7 @@ import { exportToPDF, exportToDocx } from '../utils/documentExport';
 import { inferKeyFocus, inferSeniority, SeniorityLevel } from '../utils/smartSuggestions';
 import { validateDocumentContent } from '../utils/textUtils';
 import { trackEvent } from '../utils/analytics';
+import { logger } from '../utils/logger';
 
 interface ChatInterfaceProps {
   messages: ChatMessage[];
@@ -72,28 +73,28 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   const handleExportPDF = async (content: string) => {
     try {
-      await exportToPDF({ 
+      await exportToPDF({
         content,
         jobTitle: jobDescription?.jobTitle,
         companyName: jobDescription?.companyName
       });
       trackEvent('export_pdf', { hasJobTitle: Boolean(jobDescription?.jobTitle), hasCompany: Boolean(jobDescription?.companyName) });
     } catch (error) {
-      console.error('Failed to export PDF:', error);
+      logger.error('Failed to export PDF', error instanceof Error ? error : { error });
       toast.error('errors.exportFailed');
     }
   };
 
   const handleExportDocx = async (content: string) => {
     try {
-      await exportToDocx({ 
+      await exportToDocx({
         content,
         jobTitle: jobDescription?.jobTitle,
         companyName: jobDescription?.companyName
       });
       trackEvent('export_docx', { hasJobTitle: Boolean(jobDescription?.jobTitle), hasCompany: Boolean(jobDescription?.companyName) });
     } catch (error) {
-      console.error('Failed to export DOCX:', error);
+      logger.error('Failed to export DOCX', error instanceof Error ? error : { error });
       toast.error('errors.exportFailed');
     }
   };

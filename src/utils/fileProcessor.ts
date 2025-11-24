@@ -2,6 +2,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.js?url';
 import mammoth from 'mammoth';
 import { fixCharacterEncoding } from './textUtils';
+import { logger } from './logger';
 
 // Set up PDF.js worker locally (no CDN)
 // Vite will bundle the worker and provide a URL
@@ -27,7 +28,7 @@ export const extractTextFromPDF = async (file: File): Promise<string> => {
     const cleanText = fixCharacterEncoding(fullText.trim());
     return cleanText;
   } catch (error) {
-    console.error('Error extracting PDF text:', error);
+    logger.error('Error extracting PDF text', error instanceof Error ? error : { error });
     throw new Error('Failed to extract text from PDF file');
   }
 };
@@ -41,7 +42,7 @@ export const extractTextFromWord = async (file: File): Promise<string> => {
     const cleanText = fixCharacterEncoding(result.value.trim());
     return cleanText;
   } catch (error) {
-    console.error('Error extracting Word text:', error);
+    logger.error('Error extracting Word text', error instanceof Error ? error : { error });
     throw new Error('Failed to extract text from Word file');
   }
 };

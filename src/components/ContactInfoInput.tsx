@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Mail, Phone, MapPin, Linkedin, Globe, Briefcase, Edit3, Save, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { VALIDATION_PATTERNS } from '../config/constants';
 
 export interface ContactInfo {
   fullName: string;
@@ -85,11 +86,11 @@ export const ContactInfoInput: React.FC<ContactInfoInputProps> = ({
     }
 
     // Optional field validations
-    if (data.linkedin && !data.linkedin.includes('linkedin.com')) {
+    if (data.linkedin && !data.linkedin.includes(VALIDATION_PATTERNS.LINKEDIN_DOMAIN)) {
       validationErrors.push(t('contact.errors.linkedin'));
     }
 
-    if (data.portfolio && !data.portfolio.startsWith('http')) {
+    if (data.portfolio && !data.portfolio.startsWith(VALIDATION_PATTERNS.URL_PREFIX_HTTP)) {
       validationErrors.push(t('contact.errors.portfolio'));
     }
 

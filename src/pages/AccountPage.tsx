@@ -5,6 +5,7 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../components/ToastProvider';
+import { logger } from '../utils/logger';
 
 import { fetchQuotaInfo, QuotaInfo } from '../services/quotaService';
 
@@ -21,7 +22,7 @@ export default function AccountPage() {
         const quota = await fetchQuotaInfo();
         setQuotaInfo(quota);
       } catch (error) {
-        console.error('Failed to fetch quota info:', error);
+        logger.error('Failed to fetch quota info', error instanceof Error ? error : { error });
         toast.error('Failed to load account information');
       } finally {
         setLoading(false);

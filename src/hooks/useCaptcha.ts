@@ -69,7 +69,9 @@ export function useCaptcha(): UseCaptchaReturn {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMessage);
-      console.error('CAPTCHA requirement check failed:', err);
+      import('../utils/logger').then(({ logger }) => {
+        logger.error('CAPTCHA requirement check failed', err instanceof Error ? err : { error: err });
+      }).catch(() => {});
       return false;
     }
   }, []);
@@ -100,7 +102,9 @@ export function useCaptcha(): UseCaptchaReturn {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMessage);
-      console.error('CAPTCHA challenge creation failed:', err);
+      import('../utils/logger').then(({ logger }) => {
+        logger.error('CAPTCHA challenge creation failed', err instanceof Error ? err : { error: err });
+      }).catch(() => {});
       return null;
     } finally {
       setIsVerifying(false);
@@ -149,7 +153,9 @@ export function useCaptcha(): UseCaptchaReturn {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMessage);
-      console.error('CAPTCHA verification failed:', err);
+      import('../utils/logger').then(({ logger }) => {
+        logger.error('CAPTCHA verification failed', err instanceof Error ? err : { error: err });
+      }).catch(() => {});
       return false;
     } finally {
       setIsVerifying(false);

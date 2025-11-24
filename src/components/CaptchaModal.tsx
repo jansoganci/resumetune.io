@@ -7,6 +7,7 @@
 import React from 'react';
 import { useCaptchaContext } from '../contexts/CaptchaContext';
 import { CaptchaChallenge } from './CaptchaChallenge';
+import { logger } from '../utils/logger';
 
 export function CaptchaModal() {
   const {
@@ -28,11 +29,11 @@ export function CaptchaModal() {
 
   const handleSuccess = (token: string) => {
     // The context will handle the verification and modal closing
-    console.log('CAPTCHA verification successful');
+    logger.debug('CAPTCHA verification successful', { token: token.substring(0, 10) + '...' });
   };
 
   const handleError = (error: string) => {
-    console.error('CAPTCHA verification error:', error);
+    logger.error('CAPTCHA verification error', new Error(error));
   };
 
   const handleCancel = () => {
@@ -42,9 +43,9 @@ export function CaptchaModal() {
   const handleBypass = async () => {
     const success = await attemptBypass();
     if (success) {
-      console.log('CAPTCHA bypass successful');
+      logger.info('CAPTCHA bypass successful');
     } else {
-      console.log('CAPTCHA bypass failed');
+      logger.warn('CAPTCHA bypass failed');
     }
   };
 

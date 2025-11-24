@@ -1,3 +1,5 @@
+import { logger } from './logger';
+
 export const STORAGE_KEYS = {
   CV_DATA: 'cv_data',
   CV_TEXT: 'userCvText', // Added for FileUpload component localStorage
@@ -42,7 +44,7 @@ export const saveToStorage = (key: string, data: any) => {
     const processedData = processDataForStorage(data);
     localStorage.setItem(key, JSON.stringify(processedData));
   } catch (error) {
-    console.warn(`Failed to save to localStorage (key: ${key}):`, error);
+    logger.warn('Failed to save to localStorage', { key, error });
     // Handle quota exceeded error specifically
     if (error instanceof Error && error.name === 'QuotaExceededError') {
       throw new Error('Storage quota exceeded. Please clear some browser data and try again.');
@@ -55,12 +57,12 @@ export const loadFromStorage = (key: string) => {
   try {
     const data = localStorage.getItem(key);
     if (!data) return null;
-    
+
     const parsedData = JSON.parse(data);
     // Handle Date reconstruction for known data types
     return processDataFromStorage(parsedData, key);
   } catch (error) {
-    console.warn(`Failed to load from localStorage (key: ${key}):`, error);
+    logger.warn('Failed to load from localStorage', { key, error });
     // Return null for corrupted data instead of throwing
     return null;
   }
@@ -70,7 +72,7 @@ export const removeFromStorage = (key: string) => {
   try {
     localStorage.removeItem(key);
   } catch (error) {
-    console.warn(`Failed to remove from localStorage (key: ${key}):`, error);
+    logger.warn('Failed to remove from localStorage', { key, error });
   }
 };
 
@@ -152,18 +154,17 @@ export const checkStorageAvailability = (): { available: boolean; quota?: number
     const testKey = '__storage_test__';
     localStorage.setItem(testKey, 'test');
     localStorage.removeItem(testKey);
-    
+
     // Try to get storage quota information (if supported)
     if ('storage' in navigator && 'estimate' in navigator.storage) {
       navigator.storage.estimate().then(estimate => {
-        console.log('Storage quota:', estimate.quota);
-        console.log('Storage used:', estimate.usage);
+        logger.debug('Storage quota info', { quota: estimate.quota, usage: estimate.usage });
       });
     }
-    
+
     return { available: true };
   } catch (error) {
-    console.warn('localStorage not available:', error);
+    logger.warn('localStorage not available', { error });
     return { available: false };
   }
 };
@@ -174,8 +175,8 @@ export const clearAllAppStorage = () => {
     Object.values(STORAGE_KEYS).forEach(key => {
       removeFromStorage(key);
     });
-    console.log('All app storage cleared successfully');
+    logger.info('All app storage cleared successfully');
   } catch (error) {
-    console.warn('Failed to clear all app storage:', error);
+    logger.warn('Failed to clear all app storage', { error });
   }
 };

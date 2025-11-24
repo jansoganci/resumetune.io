@@ -266,7 +266,9 @@ export function generateInvoiceHTML(data: InvoiceData): string {
 export async function generateInvoicePDF(html: string): Promise<Buffer> {
   // TODO: implement PDF conversion
   // This will be moved to a separate service for better separation of concerns
-  console.log('TODO: Convert HTML to PDF', { htmlLength: html.length });
+  import('../logger').then(({ logger }) => {
+    logger.warn('PDF generation not implemented yet - returning placeholder', { htmlLength: html.length });
+  }).catch(() => {});
   return Buffer.from('PDF_PLACEHOLDER_' + html.substring(0, 100));
 }
 

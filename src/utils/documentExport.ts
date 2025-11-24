@@ -166,7 +166,10 @@ export const exportToPDF = async (data: DocumentData) => {
       if (isCompanyName) yPosition += 3;
       
     } catch (error) {
-      console.warn('Error processing line:', line, error);
+      // Import logger dynamically
+      import('./logger').then(({ logger }) => {
+        logger.warn('Error processing line in PDF export', { line, error });
+      }).catch(() => {});
       // Fallback: add line as-is
       pdf.text(line.substring(0, 100), indent, yPosition);
       yPosition += 12;

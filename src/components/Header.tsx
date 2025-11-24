@@ -19,8 +19,6 @@ export default function Header({ onInfoClick }: HeaderProps = {}): JSX.Element {
   const handleInfoClick = () => {
     if (onInfoClick) {
       onInfoClick();
-    } else {
-      console.log('Info icon clicked');
     }
   };
 

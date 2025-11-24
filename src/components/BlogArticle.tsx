@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft, Calendar, Clock, User, Share2, Bookmark, BookOpen, Twitter, Facebook, Linkedin, Copy, Check } from 'lucide-react';
 import { BlogPost } from '../utils/blogLoader';
 import { useState, useEffect, useRef } from 'react';
+import { SOCIAL_SHARE_URLS } from '../config/constants';
 
 interface BlogArticleProps {
   post: BlogPost;
@@ -40,11 +41,11 @@ export default function BlogArticle({ post, relatedPosts = [] }: BlogArticleProp
     const text = post.excerpt;
 
     if (platform === 'twitter') {
-      window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}`, '_blank');
+      window.open(SOCIAL_SHARE_URLS.TWITTER(url), '_blank');
     } else if (platform === 'facebook') {
-      window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
+      window.open(SOCIAL_SHARE_URLS.FACEBOOK(url), '_blank');
     } else if (platform === 'linkedin') {
-      window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`, '_blank');
+      window.open(SOCIAL_SHARE_URLS.LINKEDIN(url), '_blank');
     } else if (platform === 'copy') {
       await navigator.clipboard.writeText(url);
       setCopied(true);
@@ -53,7 +54,10 @@ export default function BlogArticle({ post, relatedPosts = [] }: BlogArticleProp
       try {
         await navigator.share({ title, text, url });
       } catch (error) {
-        console.log('Error sharing:', error);
+        // User likely cancelled the share, which is normal behavior
+        import('../utils/logger').then(({ logger }) => {
+          logger.debug('Share cancelled or failed', { error });
+        }).catch(() => {});
       }
     } else {
       // Fallback: copy to clipboard

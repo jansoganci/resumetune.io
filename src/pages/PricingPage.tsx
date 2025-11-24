@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../components/ToastProvider';
 import { supabase } from '../config/supabase';
 import { getAuthHeaders } from '../utils/apiClient';
-import { STRIPE_PLANS } from '../config/constants';
+import { STRIPE_PLANS, APP_ROUTES, CONTACT } from '../config/constants';
 import { logger } from '../utils/logger';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -265,14 +265,14 @@ export default function PricingPage() {
           </p>
           <div className="flex justify-center space-x-4">
             <a
-              href="/content/index.html"
+              href={APP_ROUTES.GUIDES}
               className="text-blue-600 hover:text-blue-700 text-sm font-medium"
             >
               View Guides
             </a>
             <span className="text-gray-300">•</span>
             <a
-              href="mailto:support@careerboost.ai"
+              href={`mailto:${CONTACT.SUPPORT_EMAIL}`}
               className="text-blue-600 hover:text-blue-700 text-sm font-medium"
             >
               Contact Support

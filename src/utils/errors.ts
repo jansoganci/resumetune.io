@@ -90,11 +90,12 @@ export const handleApiError = (error: unknown): ErrorMessagePayload => {
 };
 
 export const reportError = (error: unknown, context?: Record<string, unknown>): void => {
-  if (import.meta.env.DEV) {
-    // Minimal dev logging; replace with Sentry in production rollout
-    // eslint-disable-next-line no-console
-    console.error('[reportError]', { error, context });
-  }
+  // Use logger instead of console.error
+  const err = error instanceof Error ? error : new Error(String(error));
+  import('./logger').then(({ logger }) => {
+    logger.error('Error reported', err, context);
+  }).catch(() => {});
+
   // Forward to Sentry (no-op if not initialized). Avoid top-level await.
   try {
     // Lazy import without await to keep function sync
