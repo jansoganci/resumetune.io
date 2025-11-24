@@ -1,6 +1,10 @@
 import { VercelResponse } from '@vercel/node';
 import { getSupabaseClient } from './_lib/supabase.js';
 import { compose, withCORS, withOptionalAuth, withMethods, UserRequest } from './_lib/middleware.js';
+import { ERROR_CODES, HTTP_STATUS } from '../src/config/constants.js';
+import { createApiLogger } from '../src/utils/logger.js';
+
+const log = createApiLogger('/api/increment-usage');
 
 // ================================================================
 // INCREMENT USAGE API ENDPOINT
@@ -27,10 +31,10 @@ async function handler(req: UserRequest, res: VercelResponse) {
       });
 
     if (rpcError) {
-      console.error('❌ Error incrementing daily usage:', rpcError);
-      return res.status(500).json({
+      log.error('Error incrementing daily usage', rpcError as Error, { userId: userId.substring(0, 8) });
+      return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         error: {
-          code: 'DATABASE_ERROR',
+          code: ERROR_CODES.DATABASE_ERROR,
           message: 'Failed to increment daily usage',
           details: rpcError.message
         }
@@ -38,9 +42,9 @@ async function handler(req: UserRequest, res: VercelResponse) {
     }
 
     // 5. Success response
-    console.log(`✅ Daily usage incremented for user ${userId}: ${newCount} calls today`);
+    log.debug('Daily usage incremented', { userId: userId.substring(0, 8), newCount, date: today });
 
-    return res.status(200).json({
+    return res.status(HTTP_STATUS.OK).json({
       success: true,
       message: 'Daily usage incremented successfully',
       currentUsage: newCount,
@@ -48,11 +52,11 @@ async function handler(req: UserRequest, res: VercelResponse) {
     });
 
   } catch (error) {
-    console.error('❌ Increment usage error:', error);
+    log.error('Increment usage error', error as Error);
 
-    return res.status(500).json({
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       error: {
-        code: 'INTERNAL_ERROR',
+        code: ERROR_CODES.INTERNAL_ERROR,
         message: 'An unexpected error occurred while incrementing usage'
       }
     });

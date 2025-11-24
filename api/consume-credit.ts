@@ -2,6 +2,10 @@ import { VercelResponse } from '@vercel/node';
 import { getSupabaseClient } from './_lib/supabase.js';
 import { compose, withCORS, withAuth, withMethods, withValidation, AuthenticatedRequest } from './_lib/middleware.js';
 import { consumeCreditSchema } from './_lib/schemas.js';
+import { ERROR_CODES, HTTP_STATUS } from '../src/config/constants.js';
+import { createApiLogger } from '../src/utils/logger.js';
+
+const log = createApiLogger('/api/consume-credit');
 
 // ================================================================
 // CONSUME CREDIT API ENDPOINT
@@ -25,19 +29,19 @@ async function handler(req: AuthenticatedRequest, res: VercelResponse) {
       .single();
 
     if (userError) {
-      console.error('❌ Error fetching user:', userError);
-      return res.status(500).json({
+      log.error('Error fetching user', userError as Error, { userId: userId.substring(0, 8) });
+      return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         error: {
-          code: 'DATABASE_ERROR',
+          code: ERROR_CODES.DATABASE_ERROR,
           message: 'Failed to fetch user information'
         }
       });
     }
 
     if (!user) {
-      return res.status(404).json({
+      return res.status(HTTP_STATUS.NOT_FOUND).json({
         error: {
-          code: 'USER_NOT_FOUND',
+          code: ERROR_CODES.USER_NOT_FOUND,
           message: 'User does not exist in database'
         }
       });
@@ -47,9 +51,9 @@ async function handler(req: AuthenticatedRequest, res: VercelResponse) {
     const currentCredits = user.credits_balance || 0;
 
     if (currentCredits <= 0) {
-      return res.status(400).json({
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
         error: {
-          code: 'INSUFFICIENT_CREDITS',
+          code: ERROR_CODES.INSUFFICIENT_CREDITS,
           message: 'No credits remaining'
         },
         currentCredits: 0
@@ -68,17 +72,17 @@ async function handler(req: AuthenticatedRequest, res: VercelResponse) {
       .eq('id', userId);
 
     if (updateError) {
-      console.error('❌ Error updating credits:', updateError);
-      return res.status(500).json({
+      log.error('Error updating credits', updateError as Error, { userId: userId.substring(0, 8) });
+      return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         error: {
-          code: 'UPDATE_FAILED',
+          code: ERROR_CODES.DATABASE_ERROR,
           message: 'Failed to update credit balance'
         }
       });
     }
 
     // 6. Success response
-    console.log(`✅ Credit consumed for user ${userId}: ${currentCredits} → ${newBalance}`);
+    log.debug('Credit consumed', { userId: userId.substring(0, 8), previousCredits: currentCredits, newBalance });
 
     return res.status(200).json({
       success: true,
@@ -89,11 +93,11 @@ async function handler(req: AuthenticatedRequest, res: VercelResponse) {
     });
 
   } catch (error) {
-    console.error('❌ Consume credit error:', error);
+    log.error('Consume credit error', error as Error);
 
-    return res.status(500).json({
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       error: {
-        code: 'INTERNAL_ERROR',
+        code: ERROR_CODES.INTERNAL_ERROR,
         message: 'An unexpected error occurred while consuming credit'
       }
     });

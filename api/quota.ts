@@ -1,6 +1,10 @@
 import { VercelResponse } from '@vercel/node';
 import { getSupabaseClient } from './_lib/supabase.js';
 import { compose, withCORS, withOptionalAuth, withMethods, UserRequest } from './_lib/middleware.js';
+import { LIMITS, HTTP_STATUS, ERROR_CODES } from '../src/config/constants.js';
+import { createApiLogger } from '../src/utils/logger.js';
+
+const log = createApiLogger('/api/quota');
 
 // ================================================================
 // QUOTA API - SUPABASE VERSION
@@ -14,15 +18,16 @@ async function handler(req: UserRequest, res: VercelResponse) {
     const userId = req.userId;
     const isAnonymousUser = req.isAnonymous;
 
-    console.log(`👤 User type: ${isAnonymousUser ? 'Anonymous' : 'Authenticated'} (${userId})`);
+    log.debug('User quota request', {
+      userType: isAnonymousUser ? 'Anonymous' : 'Authenticated',
+      userId: userId.substring(0, 8)
+    });
 
     // 2. Get Supabase client
     const supabase = getSupabaseClient();
 
     // 3. Get today's date
     const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD format
-
-    console.log(`📊 Fetching quota info for user ${userId} on ${today}`);
 
     // 4. Fetch data based on user type
     let todayUsage = 0;
@@ -32,30 +37,24 @@ async function handler(req: UserRequest, res: VercelResponse) {
 
     if (isAnonymousUser) {
       // Anonymous user: Only daily usage, no user record
-      console.log(`🔍 Fetching anonymous user data for ${userId}`);
-      
+      log.debug('Fetching anonymous user data', { userId: userId.substring(0, 8) });
+
       const usageResult = await supabase
         .from('daily_usage')
         .select('ai_calls_count')
         .eq('user_id', userId)
         .eq('usage_date', today)
         .maybeSingle();
-      
+
       todayUsage = usageResult.data?.ai_calls_count || 0;
-      
+
       if (usageResult.error && usageResult.error.code !== 'PGRST116') {
-        console.warn('⚠️ Anonymous daily usage query warning:', usageResult.error);
+        log.warn('Anonymous daily usage query warning', { error: usageResult.error });
       }
       
     } else {
       // Authenticated user: Parallel queries for efficiency
-      console.log(`🔍 Fetching authenticated user data for ${userId}`);
-      
-      // 🛠️ DEBUG: Check Supabase client configuration
-      console.log('🔧 Debug: Supabase client info:', {
-        hasServiceRole: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-        supabaseUrl: process.env.SUPABASE_URL?.substring(0, 30) + '...',
-      });
+      log.debug('Fetching authenticated user data', { userId: userId.substring(0, 8) });
       
       const [usageResult, userResult] = await Promise.all([
         // Günlük kullanım bilgisi
@@ -74,34 +73,20 @@ async function handler(req: UserRequest, res: VercelResponse) {
           .single()
       ]);
 
-      // 🛠️ DEBUG: Log query results for troubleshooting
-      console.log('🔧 Debug: Supabase query results:', {
-        usageResult: {
-          data: usageResult.data,
-          error: usageResult.error,
-          status: usageResult.status
-        },
-        userResult: {
-          data: userResult.data,
-          error: userResult.error,
-          status: userResult.status
-        }
-      });
-
       // Parse results
       todayUsage = usageResult.data?.ai_calls_count || 0;
-      
+
       if (usageResult.error && usageResult.error.code !== 'PGRST116') {
-        console.warn('⚠️ Daily usage query warning:', usageResult.error);
+        log.warn('Daily usage query warning', { error: usageResult.error });
       }
 
       if (userResult.error) {
         if (userResult.error.code === 'PGRST116') {
-          console.warn('⚠️ User not found in database, treating as free user');
+          log.warn('User not found in database, treating as free user', { userId: userId.substring(0, 8) });
         } else {
-          console.error('❌ User query error:', userResult.error);
+          log.error('User query error', userResult.error as Error, { userId: userId.substring(0, 8) });
           // 🛠️ GRACEFUL FALLBACK: Don't throw error, just log and continue
-          console.warn('❌ Continuing with default values due to user query error');
+          log.warn('Continuing with default values due to user query error');
         }
       } else {
         userCredits = userResult.data?.credits_balance || 0;
@@ -140,8 +125,8 @@ async function handler(req: UserRequest, res: VercelResponse) {
       plan_type: planType // Yeni alan: hangi plan türünde olduğu
     };
 
-    console.log(`✅ Quota info fetched successfully:`, {
-      userId: userId.substring(0, 8) + '...',
+    log.debug('Quota info fetched successfully', {
+      userId: userId.substring(0, 8),
       todayUsage,
       dailyLimit,
       creditsBalance,
@@ -149,14 +134,14 @@ async function handler(req: UserRequest, res: VercelResponse) {
       hasActiveSubscription
     });
 
-    return res.status(200).json(response);
+    return res.status(HTTP_STATUS.OK).json(response);
 
   } catch (error) {
-    console.error('❌ Quota API error:', error);
+    log.error('Quota API error', error as Error);
 
-    return res.status(500).json({
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       error: {
-        code: 'INTERNAL_ERROR',
+        code: ERROR_CODES.INTERNAL_ERROR,
         message: 'Failed to fetch quota information'
       }
     });
