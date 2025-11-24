@@ -1,6 +1,7 @@
 import { VercelResponse } from '@vercel/node';
 import { getSupabaseClient } from './_lib/supabase.js';
-import { compose, withCORS, withAuth, withMethods, AuthenticatedRequest } from './_lib/middleware.js';
+import { compose, withCORS, withAuth, withMethods, withValidation, AuthenticatedRequest } from './_lib/middleware.js';
+import { consumeCreditSchema } from './_lib/schemas.js';
 
 // ================================================================
 // CONSUME CREDIT API ENDPOINT
@@ -99,9 +100,10 @@ async function handler(req: AuthenticatedRequest, res: VercelResponse) {
   }
 }
 
-// Apply middleware: CORS -> Auth -> Method validation
+// Apply middleware: CORS -> Auth -> Validation -> Method validation
 export default compose([
   withCORS,
   withAuth,
+  withValidation(consumeCreditSchema),
   (handler) => withMethods(['POST'], handler)
 ])(handler);

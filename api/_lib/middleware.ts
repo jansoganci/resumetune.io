@@ -6,6 +6,7 @@
 
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { randomUUID } from 'crypto';
+import { z } from 'zod';
 import { getSupabaseClient } from './supabase.js';
 import { extractClientIP } from './utils.js';
 
@@ -866,6 +867,65 @@ export interface ErrorResponse {
     code: string;
     message: string;
     details?: any;
+  };
+}
+
+/**
+ * Validation middleware using Zod schemas
+ * Validates request body against a Zod schema and returns structured errors
+ *
+ * @param schema - Zod schema to validate against
+ * @returns Middleware function that validates req.body
+ *
+ * @example
+ * ```typescript
+ * export default compose([
+ *   withCORS,
+ *   withAuth,
+ *   withValidation(consumeCreditSchema),
+ *   (handler) => withMethods(['POST'], handler)
+ * ])(handler);
+ * ```
+ */
+export function withValidation<T extends z.ZodType>(schema: T) {
+  return (handler: ApiHandler): ApiHandler => {
+    return async (req: VercelRequest, res: VercelResponse) => {
+      try {
+        // Parse and validate request body
+        const validationResult = schema.safeParse(req.body);
+
+        if (!validationResult.success) {
+          // Extract validation errors
+          const errors = validationResult.error.errors.map(err => ({
+            field: err.path.join('.'),
+            message: err.message,
+            code: err.code
+          }));
+
+          return res.status(400).json({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Request validation failed',
+              details: errors
+            }
+          });
+        }
+
+        // Attach validated data to request for type safety
+        (req as any).validatedBody = validationResult.data;
+
+        // Continue to next handler
+        return handler(req, res);
+      } catch (error) {
+        console.error('Validation middleware error:', error);
+        return res.status(500).json({
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Failed to validate request'
+          }
+        });
+      }
+    };
   };
 }
 
