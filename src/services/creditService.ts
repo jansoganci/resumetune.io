@@ -1,5 +1,7 @@
 import { supabase } from '../config/supabase';
 import { getAuthHeaders, getCurrentUserId as getAuthUserId } from '../utils/apiClient';
+import { LIMITS } from '../config/constants';
+import { logger } from '../utils/logger';
 
 // ================================================================
 // CREDIT SERVICE - AKILLI KREDİ YÖNETİMİ
@@ -38,15 +40,13 @@ export interface UserLimitInfo {
 export function shouldConsumeCredit(actionType: string): boolean {
   const creditConsumingActions = [
     'generate_resume',
-    'generate_cover_letter', 
+    'generate_cover_letter',
     'optimize_resume',
     'analyze_job_match'
   ];
-  
+
   return creditConsumingActions.includes(actionType);
 }
-
-// getSupabaseServiceClient kaldırıldı - frontend'de service role key kullanmak güvenlik riski
 
 /**
  * Kullanıcının mevcut limit durumunu kontrol eder
@@ -63,19 +63,11 @@ export async function getUserLimitInfo(userId: string): Promise<UserLimitInfo> {
     });
 
     if (!response.ok) {
-      console.warn(`Quota API failed with status ${response.status}, using fallback values`);
+      logger.warn(`Quota API failed with status ${response.status}, using fallback values`);
       throw new Error(`Failed to fetch user info: ${response.status}`);
     }
 
     const data = await response.json();
-    
-    // Response format:
-    // {
-    //   quota: { today: number, limit: number },
-    //   credits: number,
-    //   subscription: string | null,
-    //   plan_type: 'free' | 'paid'
-    // }
 
     const hasCredits = (data.credits || 0) > 0;
     const hasActiveSubscription = data.subscription && data.subscription !== null;
@@ -86,11 +78,11 @@ export async function getUserLimitInfo(userId: string): Promise<UserLimitInfo> {
       hasActiveSubscription,
       creditsBalance: data.credits || 0,
       dailyUsage: data.quota?.today || 0,
-      dailyLimit: data.quota?.limit || 3,
+      dailyLimit: data.quota?.limit || LIMITS.FREE_DAILY,
       planType
     };
   } catch (error) {
-    console.error('Failed to get user limit info, using safe fallback:', error);
+    logger.error('Failed to get user limit info, using safe fallback', error as Error);
 
     // 🔒 FAIL-CLOSED SECURITY - Deny access on error to prevent abuse
     // When quota check fails, deny access instead of granting unlimited access
@@ -98,15 +90,12 @@ export async function getUserLimitInfo(userId: string): Promise<UserLimitInfo> {
       hasCredits: false,
       hasActiveSubscription: false,
       creditsBalance: 0,
-      dailyUsage: 999, // Set high to indicate limit exceeded
+      dailyUsage: LIMITS.CREDITS_DAILY, // Set high to indicate limit exceeded
       dailyLimit: 0, // 🔒 Deny access when quota check fails (fail-closed)
       planType: 'free'
     };
   }
 }
-
-// Removed duplicate getCurrentUserId and generateAnonymousId functions
-// Now using centralized version from utils/apiClient
 
 /**
  * Backend API'sı üzerinden kredi tüketir
@@ -123,14 +112,14 @@ async function consumeCredit(userId: string): Promise<boolean> {
     });
 
     if (!response.ok) {
-      console.error('Failed to consume credit:', response.status);
+      logger.error('Failed to consume credit', { status: response.status, userId: userId.substring(0, 8) });
       return false;
     }
 
     const result = await response.json();
     return result.success === true;
   } catch (error) {
-    console.error('Error consuming credit:', error);
+    logger.error('Error consuming credit', error as Error, { userId: userId.substring(0, 8) });
     return false;
   }
 }
@@ -150,14 +139,14 @@ async function incrementDailyUsage(userId: string): Promise<boolean> {
     });
 
     if (!response.ok) {
-      console.error('Failed to increment daily usage:', response.status);
+      logger.error('Failed to increment daily usage', { status: response.status, userId: userId.substring(0, 8) });
       return false;
     }
 
     const result = await response.json();
     return result.success === true;
   } catch (error) {
-    console.error('Error incrementing daily usage:', error);
+    logger.error('Error incrementing daily usage', error as Error, { userId: userId.substring(0, 8) });
     return false;
   }
 }
@@ -168,7 +157,7 @@ async function incrementDailyUsage(userId: string): Promise<boolean> {
 
 /**
  * Ana kredi kontrol ve tüketim fonksiyonu
- * 
+ *
  * Bu fonksiyon:
  * 1. Kullanıcının mevcut durumunu kontrol eder
  * 2. Action type'a göre kredi/limit kontrolü yapar
@@ -179,9 +168,6 @@ export async function checkAndConsumeLimit(
   actionType: string,
   userId?: string
 ): Promise<CreditCheckResult> {
-  
-
-  
   try {
     // 1. Kullanıcı ID'si kontrolü (authenticated veya anonymous)
     const currentUserId = userId || await getAuthUserId();
@@ -191,10 +177,10 @@ export async function checkAndConsumeLimit(
     const needsCredit = shouldConsumeCredit(actionType);
 
     // 3. AKILLI KREDİ LOGİC
-    
+
     // 3a. Kredi sahibi veya abonelik sahibi + kredi gerektiren işlem
     if ((userInfo.hasCredits || userInfo.hasActiveSubscription) && needsCredit) {
-      
+
       // Kredi kontrolü
       if (userInfo.hasCredits && userInfo.creditsBalance <= 0) {
         return {
@@ -236,7 +222,7 @@ export async function checkAndConsumeLimit(
 
     // 3c. Free user → günlük limite bak
     if (!userInfo.hasCredits && !userInfo.hasActiveSubscription) {
-      
+
       // Günlük limit kontrolü
       if (userInfo.dailyUsage >= userInfo.dailyLimit) {
         return {
@@ -275,11 +261,11 @@ export async function checkAndConsumeLimit(
     };
 
   } catch (error) {
-    console.error('Error in checkAndConsumeLimit:', error);
-    
+    logger.error('Error in checkAndConsumeLimit', error as Error, { actionType });
+
     // 🛠️ GRACEFUL FALLBACK - Allow AI usage when credit system fails
     // This prevents credit validation errors from breaking AI functionality
-    console.warn('Credit validation failed, allowing request to proceed');
+    logger.warn('Credit validation failed, allowing request to proceed');
     return {
       allowed: true,
       reason: 'Credit validation bypass due to system error',
@@ -316,7 +302,7 @@ export function normalizeActionType(actionType: string): string {
 export function getCreditConsumingActions(): string[] {
   return [
     'generate_resume',
-    'generate_cover_letter', 
+    'generate_cover_letter',
     'optimize_resume',
     'analyze_job_match'
   ];
@@ -338,7 +324,7 @@ export function shouldSuggestUpgrade(result: CreditCheckResult): boolean {
 export function getErrorMessage(result: CreditCheckResult): string {
   switch (result.reason) {
     case 'Daily quota exceeded':
-      return 'You\'ve reached your daily limit of 3 AI calls. Upgrade to get unlimited access!';
+      return `You've reached your daily limit of ${LIMITS.FREE_DAILY} AI calls. Upgrade to get unlimited access!`;
     case 'No credits remaining':
       return 'You\'ve used all your credits. Purchase more credits or subscribe for unlimited access!';
     case 'Authentication required':
