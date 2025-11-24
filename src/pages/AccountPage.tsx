@@ -6,6 +6,7 @@ import Footer from '../components/Footer';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../components/ToastProvider';
 import { logger } from '../utils/logger';
+import { AccountPageSkeletons } from '../components/AccountPageSkeleton';
 
 import { fetchQuotaInfo, QuotaInfo } from '../services/quotaService';
 
@@ -75,71 +76,75 @@ export default function AccountPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Header />
-      
+
       <main className="flex-1 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        {/* Account Header */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <div className="flex items-center space-x-4">
-            <div className="p-3 bg-blue-600 rounded-lg">
-              <User className="w-8 h-8 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Account Overview</h1>
-              <p className="text-gray-600">{user.email}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Plan & Quota Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Current Plan */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center space-x-3 mb-4">
-              <TrendingUp className="w-5 h-5 text-blue-600" />
-              <h3 className="text-lg font-semibold text-gray-900">Current Plan</h3>
-            </div>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Plan Type</span>
-                <span className="px-3 py-1 bg-blue-50 text-blue-800 rounded-full text-sm font-medium">
-                  {quotaInfo?.plan === 'free' ? 'Free' : 'Paid'}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Status</span>
-                <span className="text-green-600 font-medium">Active</span>
-              </div>
-              {quotaInfo?.credits !== undefined && (
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Credits Balance</span>
-                  <span className="font-semibold text-gray-900">{quotaInfo.credits}</span>
+        {loading ? (
+          <AccountPageSkeletons />
+        ) : (
+          <>
+            {/* Account Header */}
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 bg-blue-600 rounded-lg">
+                  <User className="w-8 h-8 text-white" />
                 </div>
-              )}
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">Account Overview</h1>
+                  <p className="text-gray-600">{user.email}</p>
+                </div>
+              </div>
             </div>
-          </div>
 
-
-        </div>
-
-        {/* User Information */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <div className="flex items-center space-x-3 mb-4">
-            <User className="w-5 h-5 text-blue-600" />
-            <h3 className="text-lg font-semibold text-gray-900">Account Information</h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium text-gray-600">Email Address</label>
-              <p className="text-gray-900">{user.email}</p>
+            {/* Plan & Quota Section */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Current Plan */}
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <div className="flex items-center space-x-3 mb-4">
+                  <TrendingUp className="w-5 h-5 text-blue-600" />
+                  <h3 className="text-lg font-semibold text-gray-900">Current Plan</h3>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Plan Type</span>
+                    <span className="px-3 py-1 bg-blue-50 text-blue-800 rounded-full text-sm font-medium">
+                      {quotaInfo?.plan === 'free' ? 'Free' : 'Paid'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Status</span>
+                    <span className="text-green-600 font-medium">Active</span>
+                  </div>
+                  {quotaInfo?.credits !== undefined && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Credits Balance</span>
+                      <span className="font-semibold text-gray-900">{quotaInfo.credits}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-            <div>
-              <label className="text-sm font-medium text-gray-600">Account Created</label>
-              <p className="text-gray-900">
-                {user.created_at ? formatDate(user.created_at) : 'Unknown'}
-              </p>
+
+            {/* User Information */}
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <User className="w-5 h-5 text-blue-600" />
+                <h3 className="text-lg font-semibold text-gray-900">Account Information</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Email Address</label>
+                  <p className="text-gray-900">{user.email}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Account Created</label>
+                  <p className="text-gray-900">
+                    {user.created_at ? formatDate(user.created_at) : 'Unknown'}
+                  </p>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          </>
+        )}
 
         {/* Billing & Upgrades */}
         <div className="bg-white rounded-lg shadow-sm p-6">
