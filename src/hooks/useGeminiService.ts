@@ -4,7 +4,7 @@
 // Encapsulates Gemini AI service logic and state management
 // Extracts complex AI orchestration from HomePage component
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { GeminiService } from '../services/geminiService';
 import { ChatMessage, MatchResult, CVData, JobDescription, UserProfile } from '../types';
 import { ContactInfo } from '../components/ContactInfoInput';
@@ -70,7 +70,9 @@ export function useGeminiService(options: UseGeminiServiceOptions = {}) {
 
     try {
       trackEvent('start_analysis');
-    } catch {}
+    } catch {
+      // Analytics failure shouldn't block analysis
+    }
 
     try {
       // Step 1: Initialize chat (analyzing)
@@ -99,7 +101,9 @@ export function useGeminiService(options: UseGeminiServiceOptions = {}) {
 
       try {
         trackEvent('job_match_done', { score: result.decision === 'yes' ? 1 : 0 });
-      } catch {}
+      } catch {
+        // Analytics failure shouldn't block analysis
+      }
 
       setMatchResult(result);
 

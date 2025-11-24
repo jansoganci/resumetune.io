@@ -4,7 +4,7 @@
 // Clean orchestrator for main application flow
 // Reduced from 433 → ~140 lines by extracting context, hooks, and sections
 
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';

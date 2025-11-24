@@ -66,8 +66,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   };
 
   // Localized quick prompts still in English intentionally to guide AI; UI labels are localized
-  const qaCover = 'Generate a cover letter for this position';
-  const qaResume = 'Optimize my resume for this position';
   const qaReqs = 'What are the key requirements for this role?';
   const qaSkills = 'How well do my skills match this position?';
 
@@ -297,7 +295,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 </div>
               </div>
             </div>
-          ))
+          ))}
 
           {/* AI Typing Indicator - Enhanced for UX */}
           {isLoading && (
