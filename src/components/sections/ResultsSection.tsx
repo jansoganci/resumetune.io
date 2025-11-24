@@ -12,6 +12,8 @@ import { AnimateOnScroll, SuccessCelebration } from '../../utils/animations';
 import { ConfettiCelebration } from '../MicroFeedback';
 import { MatchResult, ChatMessage, JobDescription } from '../../types';
 import { useProfile } from '../../contexts/ProfileContext';
+import { ErrorBoundary } from '../ErrorBoundary';
+import { createChatErrorFallback } from '../ChatErrorFallback';
 
 interface ResultsSectionProps {
   matchResult: MatchResult | null;
@@ -75,15 +77,17 @@ export function ResultsSection({
 
       {/* Collapsible Chat Interface */}
       <AnimateOnScroll animation="fadeInUp" delay="delay450">
-        <CollapsibleChat
-          messages={chatMessages}
-          onSendMessage={onSendMessage}
-          isLoading={isChatLoading}
-          disabled={!canChat}
-          jobDescription={jobDescription}
-          isExpanded={isChatExpanded}
-          onExpandedChange={setIsChatExpanded}
-        />
+        <ErrorBoundary fallback={createChatErrorFallback()}>
+          <CollapsibleChat
+            messages={chatMessages}
+            onSendMessage={onSendMessage}
+            isLoading={isChatLoading}
+            disabled={!canChat}
+            jobDescription={jobDescription}
+            isExpanded={isChatExpanded}
+            onExpandedChange={setIsChatExpanded}
+          />
+        </ErrorBoundary>
       </AnimateOnScroll>
 
       {/* Confetti celebration for successful matches */}
