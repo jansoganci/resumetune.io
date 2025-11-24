@@ -1,6 +1,7 @@
 import { VercelResponse } from '@vercel/node';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { compose, withCORS, withOptionalAuth, withMethods, UserRequest } from '../_lib/middleware.js';
+import { compose, withCORS, withOptionalAuth, withMethods, withValidation, UserRequest } from '../_lib/middleware.js';
+import { aiProxySchema } from '../_lib/schemas.js';
 
 // ================================================================
 // AI PROXY ENDPOINT
@@ -22,17 +23,8 @@ async function handler(req: UserRequest, res: VercelResponse) {
   }
 
   try {
-    // Parse request body
-    const { history, message, model = 'gemini-1.5-flash' } = req.body;
-
-    if (!message) {
-      return res.status(400).json({
-        error: {
-          code: 'INVALID_REQUEST',
-          message: 'Message is required'
-        }
-      });
-    }
+    // Get validated data from middleware (already validated by Zod schema)
+    const { history, message, model } = (req as any).validatedBody;
 
     // Get validated user ID from middleware
     const userId = req.userId;
@@ -162,9 +154,10 @@ async function handler(req: UserRequest, res: VercelResponse) {
   }
 }
 
-// Apply middleware: CORS -> OptionalAuth -> Method validation
+// Apply middleware: CORS -> OptionalAuth -> Validation -> Method validation
 export default compose([
   withCORS,
   withOptionalAuth,
+  withValidation(aiProxySchema),
   (handler) => withMethods(['POST'], handler)
 ])(handler);

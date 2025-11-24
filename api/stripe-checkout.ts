@@ -1,6 +1,7 @@
 import Stripe from 'stripe';
 import { VercelResponse } from '@vercel/node';
-import { compose, withCORS, withAuth, withMethods, AuthenticatedRequest } from './_lib/middleware.js';
+import { compose, withCORS, withAuth, withMethods, withValidation, AuthenticatedRequest } from './_lib/middleware.js';
+import { stripeCheckoutSchema } from './_lib/schemas.js';
 
 // Plan mapping to price IDs (updated with real Stripe Price IDs)
 const PLAN_PRICE_MAP = {
@@ -39,27 +40,8 @@ async function handler(req: AuthenticatedRequest, res: VercelResponse) {
   try {
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-    // Parse and validate request body
-    const { plan } = req.body;
-
-    if (!plan || typeof plan !== 'string') {
-      return res.status(400).json({
-        error: {
-          code: 'INVALID_PLAN',
-          message: 'Plan is required'
-        }
-      });
-    }
-
-    if (!(plan in PLAN_PRICE_MAP)) {
-      return res.status(400).json({
-        error: {
-          code: 'INVALID_PLAN',
-          message: 'Invalid plan specified'
-        }
-      });
-    }
-
+    // Get validated plan from middleware (already validated by Zod schema)
+    const { plan } = (req as any).validatedBody;
     const planType = plan as PlanType;
     const priceId = PLAN_PRICE_MAP[planType];
 
@@ -108,10 +90,11 @@ async function handler(req: AuthenticatedRequest, res: VercelResponse) {
   }
 }
 
-// Apply middleware: CORS -> Auth -> Method validation
+// Apply middleware: CORS -> Auth -> Validation -> Method validation
 export default compose([
   withCORS,
   withAuth,
+  withValidation(stripeCheckoutSchema),
   (handler) => withMethods(['POST'], handler)
 ])(handler);
 
