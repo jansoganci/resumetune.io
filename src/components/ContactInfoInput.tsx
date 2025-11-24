@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Mail, Phone, MapPin, Linkedin, Globe, Briefcase, Edit3, Save, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { validateContactInfo, hasRequiredContactFields, trimContactInfo } from '../utils/validation/contactValidation';
 
 export interface ContactInfo {
   fullName: string;
@@ -40,7 +41,7 @@ export const ContactInfoInput: React.FC<ContactInfoInputProps> = ({
 
   // Auto-enable editing if no contact info exists
   useEffect(() => {
-    if (!contactInfo || !hasRequiredFields) {
+    if (!hasRequiredContactFields(contactInfo)) {
       setIsEditing(true);
     } else {
       setIsEditing(false);
@@ -60,59 +61,14 @@ export const ContactInfoInput: React.FC<ContactInfoInputProps> = ({
     setErrors([]); // Clear errors when user starts typing
   };
 
-  const validateContactInfo = (data: ContactInfo): string[] => {
-    const validationErrors: string[] = [];
-
-    if (!data.fullName || data.fullName.length < 2) {
-      validationErrors.push(t('contact.errors.fullName'));
-    }
-
-    if (!data.email) {
-      validationErrors.push(t('contact.errors.emailRequired'));
-    } else {
-      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-      if (!emailRegex.test(data.email)) {
-        validationErrors.push(t('contact.errors.emailInvalid'));
-      }
-    }
-
-    if (!data.location || data.location.length < 2) {
-      validationErrors.push(t('contact.errors.location'));
-    }
-
-    if (!data.professionalTitle || data.professionalTitle.length < 2) {
-      validationErrors.push(t('contact.errors.professionalTitle'));
-    }
-
-    // Optional field validations
-    if (data.linkedin && !data.linkedin.includes('linkedin.com')) {
-      validationErrors.push(t('contact.errors.linkedin'));
-    }
-
-    if (data.portfolio && !data.portfolio.startsWith('http')) {
-      validationErrors.push(t('contact.errors.portfolio'));
-    }
-
-    return validationErrors;
-  };
-
   const handleSave = () => {
     // Trim values only during validation and saving, not during typing
-    const trimmedData = {
-      ...editData,
-      fullName: editData.fullName.trim(),
-      email: editData.email.trim(),
-      phone: editData.phone.trim(),
-      location: editData.location.trim(),
-      professionalTitle: editData.professionalTitle.trim(),
-      linkedin: editData.linkedin.trim(),
-      portfolio: editData.portfolio.trim()
-    };
-    
+    const trimmedData = trimContactInfo(editData);
+
     // Debug: Log the contact info being saved
     if (import.meta.env.DEV) console.log('ContactInfoInput - Saving contact info:', trimmedData);
-    
-    const validationErrors = validateContactInfo(trimmedData);
+
+    const validationErrors = validateContactInfo(trimmedData, t);
     
     if (validationErrors.length > 0) {
       setErrors(validationErrors);
@@ -135,7 +91,6 @@ export const ContactInfoInput: React.FC<ContactInfoInputProps> = ({
     setErrors([]);
   };
 
-  const hasRequiredFields = contactInfo?.fullName && contactInfo?.email && contactInfo?.location && contactInfo?.professionalTitle;
 
   return (
     <div className="space-y-2">
@@ -314,7 +269,7 @@ export const ContactInfoInput: React.FC<ContactInfoInputProps> = ({
             </div>
           </div>
         </div>
-      ) : contactInfo && hasRequiredFields ? (
+      ) : hasRequiredContactFields(contactInfo) ? (
         <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
             <div className="flex items-center space-x-2">

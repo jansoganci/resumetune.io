@@ -101,7 +101,9 @@ export function CaptchaProvider({
       
       return false;
     } catch (error) {
-      console.error('CAPTCHA bypass attempt failed:', error);
+      import('../utils/logger').then(({ logger }) => {
+        logger.error('CAPTCHA bypass attempt failed', error instanceof Error ? error : { error });
+      }).catch(() => {});
       return false;
     }
   }, [canBypass, captchaHook, closeCaptchaModal]);

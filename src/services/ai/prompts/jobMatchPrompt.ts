@@ -15,4 +15,4 @@ How to answer:
 
 You are ruthless, efficient, and focused. Save the candidate's time by filtering out irrelevant jobs. If in doubt, err on the side of caution.`;
 
-export const JOB_MATCH_JSON_INSTRUCTION = `\n\nRESPONSE FORMAT (MANDATORY):\nOutput ONLY valid JSON with this exact shape and nothing else (no prose, no code fences):\n{\n  "decision": "yes" | "no",\n  "reason": "string (max 200 chars)"\n}`;
+export const JOB_MATCH_JSON_INSTRUCTION = `\n\nRESPONSE FORMAT (MANDATORY):\nOutput ONLY valid JSON with this exact shape and nothing else (no prose, no code fences):\n{\n  "decision": "yes" | "no",\n  "reason": "string (max 200 chars)",\n  "score": number (0-100, match percentage based on skills, experience, requirements alignment)\n}`;

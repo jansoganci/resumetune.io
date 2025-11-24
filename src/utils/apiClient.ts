@@ -1,4 +1,5 @@
 import { supabase } from '../config/supabase';
+import { logger } from './logger';
 
 /**
  * Get authentication headers for API requests
@@ -20,7 +21,7 @@ export async function getAuthHeaders(): Promise<Record<string, string>> {
       return headers;
     }
   } catch (error) {
-    console.warn('Failed to get session:', error);
+    logger.warn('Failed to get session', { error });
   }
 
   // Anonymous user - send anonymous ID
@@ -47,7 +48,7 @@ export async function getCurrentUserId(): Promise<string> {
       return session.user.id;
     }
   } catch (error) {
-    console.warn('Failed to get user ID:', error);
+    logger.warn('Failed to get user ID', { error });
   }
 
   // Return anonymous ID

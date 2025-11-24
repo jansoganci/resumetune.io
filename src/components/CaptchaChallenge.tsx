@@ -5,6 +5,8 @@
 // Integrates with hCaptcha service for abuse prevention
 
 import React, { useState, useEffect, useRef } from 'react';
+import { logger } from '../utils/logger';
+import { EXTERNAL_URLS } from '../config/constants';
 
 export interface CaptchaChallengeProps {
   onSuccess: (token: string) => void;
@@ -82,7 +84,7 @@ export function CaptchaChallenge({
 
       // Load hCaptcha script
       const script = document.createElement('script');
-      script.src = 'https://js.hcaptcha.com/1/api.js';
+      script.src = EXTERNAL_URLS.HCAPTCHA_SCRIPT;
       script.async = true;
       script.defer = true;
       
@@ -127,7 +129,7 @@ export function CaptchaChallenge({
         hCaptchaRef.current = id;
         setState(prev => ({ ...prev, isLoading: false }));
       } catch (error) {
-        console.error('Failed to initialize hCaptcha:', error);
+        logger.error('Failed to initialize hCaptcha', error instanceof Error ? error : { error });
         setState(prev => ({
           ...prev,
           error: 'Failed to initialize CAPTCHA',
@@ -146,7 +148,7 @@ export function CaptchaChallenge({
         try {
           window.hcaptcha.reset(hCaptchaRef.current);
         } catch (error) {
-          console.error('Failed to cleanup hCaptcha:', error);
+          logger.error('Failed to cleanup hCaptcha', error instanceof Error ? error : { error });
         }
       }
     };
@@ -177,7 +179,7 @@ export function CaptchaChallenge({
       try {
         window.hcaptcha.reset(hCaptchaRef.current);
       } catch (error) {
-        console.error('Failed to reset hCaptcha:', error);
+        logger.error('Failed to reset hCaptcha', error instanceof Error ? error : { error });
       }
     }
   };
@@ -200,7 +202,7 @@ export function CaptchaChallenge({
           token: null
         }));
       } catch (error) {
-        console.error('Failed to reset hCaptcha:', error);
+        logger.error('Failed to reset hCaptcha', error instanceof Error ? error : { error });
       }
     }
   };

@@ -4,6 +4,7 @@ import { useDropzone } from 'react-dropzone';
 import { Upload, File, X, Type, Info, Edit3 } from 'lucide-react';
 import { extractTextFromFile } from '../utils/fileProcessor';
 import { useTranslation } from 'react-i18next';
+import { logger } from '../utils/logger';
 
 interface FileUploadProps {
   onFileProcessed: (content: string, fileName: string) => void;
@@ -39,7 +40,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         setCvText(savedCvText);
       }
     } catch (error) {
-      console.warn('Failed to load saved CV text from localStorage:', error);
+      logger.warn('Failed to load saved CV text from localStorage', { error });
     }
   }, []); // Remove onFileProcessed dependency to prevent infinite loop
 
@@ -49,7 +50,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       try {
         localStorage.setItem('userCvText', cvText);
       } catch (error) {
-        console.warn('Failed to save CV text to localStorage:', error);
+        logger.warn('Failed to save CV text to localStorage', { error });
         // Handle localStorage quota exceeded or other errors
         setError(t('fileUpload.errorSave'));
       }
@@ -105,7 +106,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     try {
       localStorage.removeItem('userCvText');
     } catch (error) {
-      console.warn('Failed to clear CV text from localStorage:', error);
+      logger.warn('Failed to clear CV text from localStorage', { error });
     }
     // Clear the processed CV data as well
     if (onClear) {

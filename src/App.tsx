@@ -8,6 +8,7 @@ import Register from './pages/Register';
 import ResetPassword from './pages/ResetPassword';
 import BlogPage from './pages/BlogPage';
 import BlogArticlePage from './pages/BlogArticlePage';
+import NotFoundPage from './pages/NotFoundPage';
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/blog" element={<BlogPage />} />
       <Route path="/blog/:slug" element={<BlogArticlePage />} />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 }

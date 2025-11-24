@@ -1,6 +1,7 @@
 import React from 'react';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { logger } from '../utils/logger';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -14,10 +15,7 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode }
   }
 
   componentDidCatch(error: any, info: any) {
-    if (import.meta.env.DEV) {
-      // eslint-disable-next-line no-console
-      console.error('[ErrorBoundary]', error, info);
-    }
+    logger.error('ErrorBoundary caught error', error, { componentStack: info?.componentStack });
   }
 
   handleRetry = () => {

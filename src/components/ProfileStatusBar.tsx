@@ -38,8 +38,8 @@ export const ProfileStatusBar: React.FC<ProfileStatusBarProps> = ({
     <div className="bg-white rounded-lg shadow-sm p-4">
       <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
         <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:space-y-0 sm:space-x-6">
-          {/* Profile Status */}
-          <Tooltip content={hasProfile ? "Profile completed" : "Click Edit to add your profile"}>
+          {/* Professional Summary Status */}
+          <Tooltip content={hasProfile ? "Professional summary completed" : "Click Edit to add your professional summary"}>
             <div className="flex items-center space-x-2">
               {hasProfile ? (
                 <Check className="w-5 h-5 text-green-600" />
@@ -47,7 +47,7 @@ export const ProfileStatusBar: React.FC<ProfileStatusBarProps> = ({
                 <User className="w-5 h-5 text-amber-600" />
               )}
               <span className={`text-sm font-medium ${hasProfile ? 'text-green-800' : 'text-amber-800'}`}>
-                {t('profile.title')}
+                📝 Professional Summary
               </span>
             </div>
           </Tooltip>
@@ -64,7 +64,7 @@ export const ProfileStatusBar: React.FC<ProfileStatusBarProps> = ({
             </span>
           </div>
 
-          {/* CV Status */}
+          {/* Full Resume/CV Status */}
           <div className="flex items-center space-x-2">
             {hasCV ? (
               <Check className="w-5 h-5 text-green-600" />
@@ -72,7 +72,7 @@ export const ProfileStatusBar: React.FC<ProfileStatusBarProps> = ({
               <FileText className="w-5 h-5 text-amber-600" />
             )}
             <span className={`text-sm font-medium ${hasCV ? 'text-green-800' : 'text-amber-800'}`}>
-              {t('yourCV')}
+              📄 Full Resume/CV
             </span>
           </div>
         </div>

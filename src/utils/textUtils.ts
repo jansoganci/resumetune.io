@@ -201,7 +201,10 @@ export const validateDocumentContent = (content: string, type: 'resume' | 'cover
   // Check for character spacing issues
   const hasSpacingIssues = detectCharacterSpacingIssues(cleanContent);
   if (hasSpacingIssues) {
-    console.warn('Document validation failed: Character spacing issues detected');
+    // Import logger dynamically
+    import('./logger').then(({ logger }) => {
+      logger.warn('Document validation failed: Character spacing issues detected');
+    }).catch(() => {});
     return false;
   }
   
@@ -420,7 +423,9 @@ export const extractCoverLetterFromAIResponse = (aiResponse: string): string => 
 export const formatCoverLetterHeader = (contactInfo: any): string => {
   // Debug: Restricted to dev to prevent PII exposure in production logs
   if (import.meta.env.DEV) {
-    console.log('formatCoverLetterHeader(dev) - received keys:', Object.keys(contactInfo || {}));
+    import('./logger').then(({ logger }) => {
+      logger.debug('formatCoverLetterHeader - received keys', { keys: Object.keys(contactInfo || {}) });
+    }).catch(() => {});
   }
   
   // Format contact information in professional 2-3 line format
@@ -438,15 +443,19 @@ export const formatCoverLetterHeader = (contactInfo: any): string => {
   
   // Minimal dev-only insight
   if (import.meta.env.DEV) {
-    console.log('formatCoverLetterHeader(dev) - contact line length:', contactLine.length);
+    import('./logger').then(({ logger }) => {
+      logger.debug('formatCoverLetterHeader - contact line', { length: contactLine.length });
+    }).catch(() => {});
   }
-  
+
   if (contactLine) {
     headerLines.push(contactLine);
   }
-  
+
   if (import.meta.env.DEV) {
-    console.log('formatCoverLetterHeader(dev) - final lines count:', headerLines.length);
+    import('./logger').then(({ logger }) => {
+      logger.debug('formatCoverLetterHeader - final lines', { count: headerLines.length });
+    }).catch(() => {});
   }
   
   // Line 3: LinkedIn/Portfolio (if provided)
@@ -541,7 +550,11 @@ export const formatCompleteCoverLetter = (rawContent: string, contactInfo: any):
   
   // Format the complete cover letter
   const formattedHeader = formatCoverLetterHeader(contactInfo);
-  console.log('formatCompleteCoverLetter - Formatted header result:', formattedHeader);
+  if (import.meta.env.DEV) {
+    import('./logger').then(({ logger }) => {
+      logger.debug('formatCompleteCoverLetter - Formatted header result', { header: formattedHeader });
+    }).catch(() => {});
+  }
   const formattedBody = formatCoverLetterBody(bodyContent);
   
   const formattedCoverLetter = `${formattedHeader}

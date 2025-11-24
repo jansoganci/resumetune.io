@@ -243,6 +243,49 @@ export const ENV = {
 } as const;
 
 // ================================================================
+// URLS & EXTERNAL SERVICES
+// ================================================================
+
+export const EXTERNAL_URLS = {
+  // Third-party services
+  HCAPTCHA_SCRIPT: 'https://js.hcaptcha.com/1/api.js',
+} as const;
+
+export const LEGAL_URLS = {
+  TERMS_OF_SERVICE: '/legal/terms-of-service.html',
+  PRIVACY_POLICY: '/legal/privacy-policy.html',
+} as const;
+
+export const APP_ROUTES = {
+  HOME: '/',
+  LANDING: '/landing',
+  LOGIN: '/login',
+  REGISTER: '/register',
+  RESET_PASSWORD: '/reset-password',
+  ACCOUNT: '/account',
+  PRICING: '/pricing',
+  BLOG: '/blog',
+  GUIDES: '/content/index.html',
+} as const;
+
+export const CONTACT = {
+  SUPPORT_EMAIL: 'support@careerboost.ai',
+} as const;
+
+export const VALIDATION_PATTERNS = {
+  // Domain and URL validation patterns
+  LINKEDIN_DOMAIN: 'linkedin.com',
+  URL_PREFIX_HTTP: 'http',
+  URL_PREFIX_HTTPS: 'https',
+} as const;
+
+export const SOCIAL_SHARE_URLS = {
+  TWITTER: (url: string) => `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}`,
+  FACEBOOK: (url: string) => `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
+  LINKEDIN: (url: string) => `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`,
+} as const;
+
+// ================================================================
 // TYPE EXPORTS
 // ================================================================
 
