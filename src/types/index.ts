@@ -9,6 +9,7 @@ export interface MatchResult {
   decision: 'yes' | 'no';
   message: string;
   timestamp: Date;
+  score: number; // Match percentage (0-100)
 }
 
 export interface CVData {

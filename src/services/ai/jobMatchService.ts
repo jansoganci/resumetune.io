@@ -35,13 +35,14 @@ export class JobMatchService extends BaseAIService {
     await this.checkAndConsume('analyze_job_match');
 
     try {
-      const prompt = `Based on the CV and job description provided, decide whether the candidate should apply. ${JOB_MATCH_JSON_INSTRUCTION}`;
+      const prompt = `Based on the CV and job description provided, decide whether the candidate should apply. Also provide a match score (0-100) indicating how well the candidate's profile aligns with the job requirements. ${JOB_MATCH_JSON_INSTRUCTION}`;
       const response = await this.sendMessage(prompt);
 
       // Parse and validate JSON response
       const Schema = z.object({
         decision: z.enum(['yes', 'no']),
-        reason: z.string().max(LIMITS.MATCH_REASON_MAX_LENGTH)
+        reason: z.string().max(LIMITS.MATCH_REASON_MAX_LENGTH),
+        score: z.number().min(0).max(100)
       });
 
       const parsed = Schema.parse(JSON.parse(this.sanitizeToJson(response)));
@@ -49,6 +50,7 @@ export class JobMatchService extends BaseAIService {
       return {
         decision: parsed.decision,
         message: parsed.reason,
+        score: parsed.score,
         timestamp: new Date()
       };
     } catch (error) {
