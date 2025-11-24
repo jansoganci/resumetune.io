@@ -17,6 +17,8 @@ import { ProfileSection } from '../components/sections/ProfileSection';
 import { JobAnalysisSection } from '../components/sections/JobAnalysisSection';
 import { ResultsSection } from '../components/sections/ResultsSection';
 import { QuotaIndicatorRef } from '../components/QuotaIndicator';
+import { ErrorBoundary } from '../components/ErrorBoundary';
+import { createSectionErrorFallback } from '../components/SectionErrorFallback';
 
 function HomePageContent() {
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
@@ -88,23 +90,29 @@ function HomePageContent() {
         )}
 
         {/* Profile Management Section */}
-        <ProfileSection />
+        <ErrorBoundary fallback={createSectionErrorFallback('Profile')}>
+          <ProfileSection />
+        </ErrorBoundary>
 
         {/* Job Analysis Section */}
-        <JobAnalysisSection
-          onAnalyze={handleAnalyze}
-          isAnalyzing={geminiService.isAnalyzing}
-          analysisStep={geminiService.analysisStep}
-          analysisProgress={geminiService.analysisProgress}
-        />
+        <ErrorBoundary fallback={createSectionErrorFallback('Job Analysis')}>
+          <JobAnalysisSection
+            onAnalyze={handleAnalyze}
+            isAnalyzing={geminiService.isAnalyzing}
+            analysisStep={geminiService.analysisStep}
+            analysisProgress={geminiService.analysisProgress}
+          />
+        </ErrorBoundary>
 
         {/* Results Section */}
-        <ResultsSection
-          matchResult={geminiService.matchResult}
-          chatMessages={geminiService.chatMessages}
-          isChatLoading={geminiService.isChatLoading}
-          onSendMessage={handleSendMessage}
-        />
+        <ErrorBoundary fallback={createSectionErrorFallback('Results')}>
+          <ResultsSection
+            matchResult={geminiService.matchResult}
+            chatMessages={geminiService.chatMessages}
+            isChatLoading={geminiService.isChatLoading}
+            onSendMessage={handleSendMessage}
+          />
+        </ErrorBoundary>
       </main>
 
       <Footer />

@@ -7,7 +7,12 @@ interface ErrorBoundaryState {
   hasError: boolean;
 }
 
-export class ErrorBoundary extends React.Component<{ children: React.ReactNode }, ErrorBoundaryState> {
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+  fallback?: React.ReactNode | ((props: { onRetry: () => void }) => React.ReactNode);
+}
+
+export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = { hasError: false };
 
   static getDerivedStateFromError(): ErrorBoundaryState {
@@ -24,6 +29,19 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode }
 
   render() {
     if (this.state.hasError) {
+      const { fallback } = this.props;
+
+      // If custom fallback is provided
+      if (fallback) {
+        // Check if fallback is a function (render prop pattern)
+        if (typeof fallback === 'function') {
+          return fallback({ onRetry: this.handleRetry });
+        }
+        // Otherwise render the fallback component as-is
+        return fallback;
+      }
+
+      // Default fallback (full-page error)
       return <Fallback onRetry={this.handleRetry} />;
     }
     return this.props.children;
