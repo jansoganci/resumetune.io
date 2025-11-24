@@ -1,69 +1,53 @@
 import { COVER_LETTER_SYSTEM_PROMPT, COVER_LETTER_JSON_INSTRUCTION } from './prompts/coverLetterPrompt';
-import { CVData, JobDescription, UserProfile } from '../../types';
+import { UserProfile } from '../../types';
 import { ContactInfo } from '../../components/ContactInfoInput';
 import { formatCompleteCoverLetter } from '../../utils/textUtils';
-import { sendAiMessage, AiHistoryItem } from './aiProxyClient';
-import { AppError, ErrorCode, mapUnknownError } from '../../utils/errors';
-import { checkAndConsumeLimit, getErrorMessage } from '../creditService';
+import { AppError, ErrorCode } from '../../utils/errors';
+import { BaseAIService } from './core/BaseAIService';
+import { logger } from '../../utils/logger';
 
-export class CoverLetterService {
-  private history: AiHistoryItem[] = [];
-
-  async initializeChat(cvData: CVData, jobDescription: JobDescription, userProfile?: UserProfile) {
-    // Variables are used directly in the prompt, no need to store as instance variables
-    
-    const profileSection = userProfile ? `
-CANDIDATE PROFILE:
-${userProfile.content}
-` : '';
-
-    const initialContext = `${COVER_LETTER_SYSTEM_PROMPT}
-${profileSection}
-
-CV CONTENT:
-${cvData.content}
-
-JOB DESCRIPTION:
-${jobDescription.content}
-
-You now have the candidate's ${userProfile ? 'profile, ' : ''}CV and the job description. You can help create a personalized cover letter.`;
-
-    this.history = [
-      { role: 'user', parts: [{ text: initialContext }] },
-      { role: 'model', parts: [{ text: `I have analyzed the candidate's ${userProfile ? 'profile, ' : ''}CV and job description. I\'m ready to help you create a personalized cover letter for this position.` }] }
-    ];
+/**
+ * Cover Letter Service
+ * Generates personalized cover letters based on CV and job description
+ * Extends BaseAIService to eliminate code duplication
+ */
+export class CoverLetterService extends BaseAIService {
+  protected getSystemPrompt(): string {
+    return COVER_LETTER_SYSTEM_PROMPT;
   }
 
-  async generateCoverLetter(contactInfo: ContactInfo, options?: { skipCreditCheck?: boolean }): Promise<string> {
-    if (!this.history.length) {
-      throw new Error('Cover letter service not initialized. Please try again.');
-    }
+  protected getServiceName(): string {
+    return 'CoverLetterService';
+  }
 
-    // ✅ KREDİ KONTROLÜ - Allow orchestrator to handle once
+  protected getInitialResponseMessage(userProfile?: UserProfile): string {
+    return `I have analyzed the candidate's ${userProfile ? 'profile, ' : ''}CV and job description. I'm ready to help you create a personalized cover letter for this position.`;
+  }
+
+  /**
+   * Generate a professional cover letter
+   * Consumes 1 credit (unless skipCreditCheck is true)
+   */
+  async generateCoverLetter(
+    contactInfo: ContactInfo,
+    options?: { skipCreditCheck?: boolean }
+  ): Promise<string> {
+    this.ensureInitialized();
+
+    // Check and consume credit (unless orchestrator already handled it)
     if (!options?.skipCreditCheck) {
-      const creditCheck = await checkAndConsumeLimit('generate_cover_letter');
-      if (!creditCheck.allowed) {
-        const errorMessage = getErrorMessage(creditCheck);
-        throw new AppError(ErrorCode.QuotaExceeded, errorMessage);
-      }
-      console.log('✅ Credit check passed for cover letter generation:', {
-        planType: creditCheck.planType,
-        creditsRemaining: creditCheck.currentCredits,
-        dailyUsage: creditCheck.dailyUsage
-      });
+      await this.checkAndConsume('generate_cover_letter');
     }
 
     // Debug logs limited to dev environment to avoid leaking PII in production
-    if (import.meta.env.DEV) {
-      console.log('CoverLetterService - Received contact info (dev):', {
-        fullName: contactInfo.fullName,
-        email: contactInfo.email,
-        location: contactInfo.location,
-        hasPhone: Boolean(contactInfo.phone),
-        hasLinkedin: Boolean(contactInfo.linkedin),
-        hasPortfolio: Boolean(contactInfo.portfolio),
-      });
-    }
+    logger.debug('CoverLetterService - Received contact info', {
+      fullName: contactInfo.fullName,
+      email: contactInfo.email,
+      location: contactInfo.location,
+      hasPhone: Boolean(contactInfo.phone),
+      hasLinkedin: Boolean(contactInfo.linkedin),
+      hasPortfolio: Boolean(contactInfo.portfolio),
+    });
 
     try {
       const prompt = `Generate a professional cover letter with the following information:
@@ -87,22 +71,17 @@ INSTRUCTIONS:
 
 Generate ONLY the cover letter content - no additional text or formatting instructions.
 ${COVER_LETTER_JSON_INSTRUCTION}`;
-      
-      const rawCoverLetter = await sendAiMessage(this.history, prompt);
-      
+
+      const rawCoverLetter = await this.sendMessage(prompt);
+
       if (!rawCoverLetter || rawCoverLetter.trim().length < 50) {
         throw new Error('Generated cover letter is too short. Please try again.');
       }
-      
+
       // Parse JSON content robustly (handle code fences if any)
-      const sanitizeToJson = (text: string): string => {
-        const withoutFences = text.replace(/```json|```/gi, '').trim();
-        const match = withoutFences.match(/\{[\s\S]*\}/);
-        return match ? match[0] : withoutFences;
-      };
       let content: string;
       try {
-        const parsed = JSON.parse(sanitizeToJson(rawCoverLetter));
+        const parsed = JSON.parse(this.sanitizeToJson(rawCoverLetter));
         content = typeof parsed?.content === 'string' ? parsed.content : rawCoverLetter;
       } catch {
         content = rawCoverLetter;
@@ -110,22 +89,22 @@ ${COVER_LETTER_JSON_INSTRUCTION}`;
 
       // Apply professional formatting using our utility functions
       const formattedCoverLetter = formatCompleteCoverLetter(content, contactInfo);
-      
+
       return `✅ **Perfect! Here's your personalized cover letter:**
 
 ${formattedCoverLetter}
 
 ---
 🎉 **Your cover letter is ready!** Click the download buttons below to get PDF or DOCX versions.`;
-      
-    } catch (error) {
-      console.error('Cover letter generation error:', error);
-      const mapped = mapUnknownError(error);
-      throw new AppError(mapped.code || ErrorCode.AiFailed, 'AI failed to generate cover letter', {}, error);
-    }
-  }
 
-  reset() {
-    this.history = [];
+    } catch (error) {
+      logger.error('Cover letter generation error', error as Error);
+      throw new AppError(
+        ErrorCode.AiFailed,
+        'AI failed to generate cover letter',
+        {},
+        error
+      );
+    }
   }
 }

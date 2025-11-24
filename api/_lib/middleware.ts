@@ -5,8 +5,12 @@
 // Isolated from src/ to avoid cross-boundary import issues
 
 import { VercelRequest, VercelResponse } from '@vercel/node';
+import { randomUUID } from 'crypto';
+import { z } from 'zod';
 import { getSupabaseClient } from './supabase.js';
 import { extractClientIP } from './utils.js';
+import { HTTP_STATUS, ERROR_CODES } from '../../src/config/constants.js';
+import { logger } from '../../src/utils/logger.js';
 
 // ================================================================
 // RATE LIMITING INTERFACES & FUNCTIONS
@@ -44,7 +48,7 @@ export async function checkIPRateLimit(
       });
     
     if (error) {
-      console.error('Rate limit check failed:', error);
+      logger.error('Rate limit check failed', error as Error, { clientIP });
       // On error, allow the request to proceed (fail open for safety)
       return {
         allowed: true,
@@ -73,7 +77,7 @@ export async function checkIPRateLimit(
     };
     
   } catch (error) {
-    console.error('Rate limit middleware error:', error);
+    logger.error('Rate limit middleware error', error as Error);
     // On error, allow the request to proceed (fail open for safety)
     return {
       allowed: true,
@@ -142,7 +146,7 @@ export async function trackAnonymousUser(
       });
     
     if (error) {
-      console.error('Anonymous user tracking failed:', error);
+      logger.error('Anonymous user tracking failed', error as Error, { anonymousId });
       // Return safe defaults on error
       return {
         isAbuse: false,
@@ -171,7 +175,7 @@ export async function trackAnonymousUser(
     };
     
   } catch (error) {
-    console.error('Anonymous abuse detection error:', error);
+    logger.error('Anonymous abuse detection error', error as Error);
     // Return safe defaults on error
     return {
       isAbuse: false,
@@ -203,7 +207,7 @@ export async function checkAnonymousAbuse(
       });
     
     if (error) {
-      console.error('Anonymous abuse check failed:', error);
+      logger.error('Anonymous abuse check failed', error as Error);
       // Return safe defaults on error
       return {
         isAbuse: false,
@@ -232,7 +236,7 @@ export async function checkAnonymousAbuse(
     };
     
   } catch (error) {
-    console.error('Anonymous abuse check error:', error);
+    logger.error('Anonymous abuse check error', error as Error);
     // Return safe defaults on error
     return {
       isAbuse: false,
@@ -310,13 +314,13 @@ export class CaptchaService {
   constructor() {
     this.secretKey = process.env.HCAPTCHA_SECRET_KEY || '';
     this.siteKey = process.env.HCAPTCHA_SITE_KEY || '';
-    
+
     if (!this.secretKey) {
-      console.warn('HCAPTCHA_SECRET_KEY not set - CAPTCHA verification will fail');
+      logger.warn('HCAPTCHA_SECRET_KEY not set - CAPTCHA verification will fail');
     }
-    
+
     if (!this.siteKey) {
-      console.warn('HCAPTCHA_SITE_KEY not set - CAPTCHA frontend will not work');
+      logger.warn('HCAPTCHA_SITE_KEY not set - CAPTCHA frontend will not work');
     }
   }
 
@@ -382,8 +386,8 @@ export class CaptchaService {
       }
 
     } catch (error) {
-      console.error('CAPTCHA verification error:', error);
-      
+      logger.error('CAPTCHA verification error', error as Error);
+
       return {
         success: false,
         error: 'CAPTCHA verification failed'
@@ -429,10 +433,10 @@ export class CaptchaService {
   }
 
   /**
-   * Generate a unique challenge ID
+   * Generate a unique challenge ID using cryptographically secure random
    */
   generateChallengeId(): string {
-    return `captcha_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return `captcha_${Date.now()}_${randomUUID()}`;
   }
 
   /**
@@ -495,7 +499,7 @@ export async function createEnhancedCaptchaChallenge(
     };
     
   } catch (error) {
-    console.error('Failed to create enhanced CAPTCHA challenge:', error);
+    logger.error('Failed to create enhanced CAPTCHA challenge', error as Error);
     return null;
   }
 }
@@ -521,8 +525,8 @@ export async function checkCaptchaBypass(
     };
     
   } catch (error) {
-    console.error('CAPTCHA bypass check error:', error);
-    
+    logger.error('CAPTCHA bypass check error', error as Error);
+
     // On error, deny bypass (fail closed for security)
     return {
       allowed: false,
@@ -584,8 +588,8 @@ export async function checkConditionalCaptcha(
     };
     
   } catch (error) {
-    console.error('Conditional CAPTCHA check error:', error);
-    
+    logger.error('Conditional CAPTCHA check error', error as Error);
+
     // On error, allow request to proceed (fail open for safety)
     return {
       captchaRequired: false,
@@ -607,33 +611,352 @@ export async function checkConditionalCaptcha(
 export async function getAbuseProtectionStatus(): Promise<any> {
   try {
     const supabase = getSupabaseClient();
-    
+
     // Get system health
     const { data: healthData, error: healthError } = await supabase
       .rpc('check_system_health');
-    
+
     if (healthError) {
-      console.error('Failed to get system health:', healthError);
+      logger.error('Failed to get system health', healthError as Error);
       return { error: 'Failed to get system health' };
     }
-    
+
     // Get abuse statistics
     const { data: abuseData, error: abuseError } = await supabase
       .rpc('get_abuse_statistics', { p_hours_back: 24 });
-    
+
     if (abuseError) {
-      console.error('Failed to get abuse statistics:', abuseError);
+      logger.error('Failed to get abuse statistics', abuseError as Error);
       return { error: 'Failed to get abuse statistics' };
     }
-    
+
     return {
       systemHealth: healthData,
       abuseStatistics: abuseData,
       timestamp: new Date().toISOString()
     };
-    
+
   } catch (error) {
-    console.error('Failed to get abuse protection status:', error);
+    logger.error('Failed to get abuse protection status', error as Error);
     return { error: 'Failed to get abuse protection status' };
   }
+}
+
+// ================================================================
+// AUTHENTICATION & CORS MIDDLEWARE
+// ================================================================
+
+/**
+ * Type for Vercel API handler function
+ */
+export type ApiHandler = (req: VercelRequest, res: VercelResponse) => Promise<void> | void;
+
+/**
+ * Extended request with authenticated user
+ */
+export interface AuthenticatedRequest extends VercelRequest {
+  user: {
+    id: string;
+    email?: string;
+    [key: string]: any;
+  };
+}
+
+/**
+ * Extended request with user (authenticated or anonymous)
+ */
+export interface UserRequest extends VercelRequest {
+  userId: string;
+  isAnonymous: boolean;
+  user: {
+    id: string;
+    email?: string;
+    [key: string]: any;
+  } | null;
+}
+
+/**
+ * CORS middleware - handles CORS headers for allowed origins
+ *
+ * @param handler - The API handler to wrap
+ * @returns Wrapped handler with CORS support
+ *
+ * @example
+ * ```typescript
+ * export default withCORS(async (req, res) => {
+ *   // Your API logic here
+ * });
+ * ```
+ */
+export function withCORS(handler: ApiHandler): ApiHandler {
+  return async (req: VercelRequest, res: VercelResponse) => {
+    const origin = req.headers.origin || '';
+
+    // List of allowed origins
+    const allowedOrigins = [
+      'https://resumetune.io',
+      'https://www.resumetune.io',
+      'http://localhost:5173',
+      'http://localhost:5174', // Alternate dev port
+      'http://localhost:3000'  // Alternate dev port
+    ];
+
+    // Check if origin is allowed
+    if (allowedOrigins.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Vary', 'Origin');
+    }
+
+    // Set other CORS headers
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Captcha-Token, X-User-Id');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+
+    // Handle preflight OPTIONS request
+    if (req.method === 'OPTIONS') {
+      return res.status(204).end();
+    }
+
+    // Call the actual handler
+    return handler(req, res);
+  };
+}
+
+/**
+ * Authentication middleware - validates JWT token and attaches user to request
+ * Returns 401 if authentication fails
+ *
+ * @param handler - The API handler to wrap
+ * @returns Wrapped handler with authentication
+ *
+ * @example
+ * ```typescript
+ * export default withAuth(async (req: AuthenticatedRequest, res) => {
+ *   const userId = req.user.id;
+ *   // Your API logic here
+ * });
+ * ```
+ */
+export function withAuth(handler: (req: AuthenticatedRequest, res: VercelResponse) => Promise<void> | void): ApiHandler {
+  return async (req: VercelRequest, res: VercelResponse) => {
+    const { validateSession } = await import('./auth.js');
+    const { user, error } = await validateSession(req);
+
+    if (error || !user) {
+      return res.status(error?.status || 401).json({
+        error: {
+          code: error?.code || 'UNAUTHENTICATED',
+          message: error?.message || 'Authentication required'
+        }
+      });
+    }
+
+    // Attach user to request
+    const authenticatedReq = req as AuthenticatedRequest;
+    authenticatedReq.user = user;
+
+    // Call the actual handler with authenticated request
+    return handler(authenticatedReq, res);
+  };
+}
+
+/**
+ * Flexible authentication middleware - validates JWT token but allows anonymous users
+ * Attaches userId and user to request (user will be null for anonymous)
+ *
+ * @param handler - The API handler to wrap
+ * @returns Wrapped handler with user context
+ *
+ * @example
+ * ```typescript
+ * export default withOptionalAuth(async (req: UserRequest, res) => {
+ *   if (req.isAnonymous) {
+ *     // Handle anonymous user
+ *   } else {
+ *     // Handle authenticated user
+ *   }
+ * });
+ * ```
+ */
+export function withOptionalAuth(handler: (req: UserRequest, res: VercelResponse) => Promise<void> | void): ApiHandler {
+  return async (req: VercelRequest, res: VercelResponse) => {
+    const { validateSessionOrAnonymous } = await import('./auth.js');
+    const { userId, isAnonymous, user, error } = await validateSessionOrAnonymous(req);
+
+    // If there's an error and no userId (not even anonymous), return 401
+    if (error && !userId) {
+      return res.status(error.status).json({
+        error: {
+          code: error.code,
+          message: error.message
+        }
+      });
+    }
+
+    // Attach user context to request
+    const userReq = req as UserRequest;
+    userReq.userId = userId;
+    userReq.isAnonymous = isAnonymous;
+    userReq.user = user;
+
+    // Call the actual handler with user context
+    return handler(userReq, res);
+  };
+}
+
+/**
+ * Method validation middleware - ensures only specified HTTP methods are allowed
+ *
+ * @param methods - Array of allowed HTTP methods
+ * @param handler - The API handler to wrap
+ * @returns Wrapped handler with method validation
+ *
+ * @example
+ * ```typescript
+ * export default withMethods(['POST'], async (req, res) => {
+ *   // Only POST requests will reach here
+ * });
+ * ```
+ */
+export function withMethods(methods: string[], handler: ApiHandler): ApiHandler {
+  return async (req: VercelRequest, res: VercelResponse) => {
+    if (!methods.includes(req.method || '')) {
+      res.setHeader('Allow', methods.join(', '));
+      return res.status(405).json({
+        error: {
+          code: 'METHOD_NOT_ALLOWED',
+          message: `Method ${req.method} not allowed. Allowed methods: ${methods.join(', ')}`
+        }
+      });
+    }
+
+    return handler(req, res);
+  };
+}
+
+/**
+ * Compose multiple middleware functions
+ * Applies middleware from left to right
+ *
+ * @param middlewares - Array of middleware functions
+ * @returns Composed middleware function
+ *
+ * @example
+ * ```typescript
+ * export default compose([
+ *   withCORS,
+ *   withAuth,
+ *   (handler) => withMethods(['POST'], handler)
+ * ])(async (req: AuthenticatedRequest, res) => {
+ *   // Your API logic here
+ * });
+ * ```
+ */
+export function compose(middlewares: Array<(handler: ApiHandler) => ApiHandler>) {
+  return (handler: ApiHandler): ApiHandler => {
+    return middlewares.reduceRight(
+      (acc, middleware) => middleware(acc),
+      handler
+    );
+  };
+}
+
+/**
+ * Standard error response format
+ */
+export interface ErrorResponse {
+  error: {
+    code: string;
+    message: string;
+    details?: any;
+  };
+}
+
+/**
+ * Validation middleware using Zod schemas
+ * Validates request body against a Zod schema and returns structured errors
+ *
+ * @param schema - Zod schema to validate against
+ * @returns Middleware function that validates req.body
+ *
+ * @example
+ * ```typescript
+ * export default compose([
+ *   withCORS,
+ *   withAuth,
+ *   withValidation(consumeCreditSchema),
+ *   (handler) => withMethods(['POST'], handler)
+ * ])(handler);
+ * ```
+ */
+export function withValidation<T extends z.ZodType>(schema: T) {
+  return (handler: ApiHandler): ApiHandler => {
+    return async (req: VercelRequest, res: VercelResponse) => {
+      try {
+        // Parse and validate request body
+        const validationResult = schema.safeParse(req.body);
+
+        if (!validationResult.success) {
+          // Extract validation errors
+          const errors = validationResult.error.errors.map(err => ({
+            field: err.path.join('.'),
+            message: err.message,
+            code: err.code
+          }));
+
+          return res.status(400).json({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Request validation failed',
+              details: errors
+            }
+          });
+        }
+
+        // Attach validated data to request for type safety
+        (req as any).validatedBody = validationResult.data;
+
+        // Continue to next handler
+        return handler(req, res);
+      } catch (error) {
+        logger.error('Validation middleware error', error as Error);
+        return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Failed to validate request'
+          }
+        });
+      }
+    };
+  };
+}
+
+/**
+ * Helper to send standardized error responses
+ *
+ * @param res - Response object
+ * @param status - HTTP status code
+ * @param code - Error code
+ * @param message - Error message
+ * @param details - Optional additional error details
+ */
+export function sendError(
+  res: VercelResponse,
+  status: number,
+  code: string,
+  message: string,
+  details?: any
+): void {
+  const response: ErrorResponse = {
+    error: {
+      code,
+      message
+    }
+  };
+
+  if (details) {
+    response.error.details = details;
+  }
+
+  res.status(status).json(response);
 }

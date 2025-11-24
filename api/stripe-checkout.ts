@@ -1,69 +1,61 @@
 import Stripe from 'stripe';
-import { VercelRequest, VercelResponse } from '@vercel/node';
+import { VercelResponse } from '@vercel/node';
+import { compose, withCORS, withAuth, withMethods, withValidation, AuthenticatedRequest } from './_lib/middleware.js';
+import { stripeCheckoutSchema } from './_lib/schemas.js';
+import { STRIPE_PLANS, ERROR_CODES, HTTP_STATUS } from '../src/config/constants';
+import { createApiLogger } from '../src/utils/logger';
 
-// Plan mapping to price IDs (updated with real Stripe Price IDs)
+const log = createApiLogger('/api/stripe-checkout');
+
+// Plan mapping to price IDs (using centralized constants)
 const PLAN_PRICE_MAP = {
-  credits_50: 'price_1Ru9HM05RA5Scg6HhM3OXCON',
-  credits_200: 'price_1Ru9HN05RA5Scg6HopJOvdjD',
-  sub_100: 'price_1Ru9HO05RA5Scg6HELd7x3hT',
-  sub_300: 'price_1Ru9HQ05RA5Scg6H1hiJ0Jf0',
+  credits_50: STRIPE_PLANS.CREDITS_50.priceId,
+  credits_200: STRIPE_PLANS.CREDITS_200.priceId,
+  sub_100: STRIPE_PLANS.SUB_100.priceId,
+  sub_300: STRIPE_PLANS.SUB_300.priceId,
 } as const;
 
 type PlanType = keyof typeof PLAN_PRICE_MAP;
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Basic CORS (MVP): allow site origins only
-  const origin = req.headers.origin || '';
-  const allowed = ['https://resumetune.io', 'http://localhost:5173'];
-  if (allowed.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Vary', 'Origin');
-  }
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'content-type, x-user-id');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(204).end();
-  }
-
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST, OPTIONS');
-    return res.status(405).json({ error: { code: 'METHOD_NOT_ALLOWED', message: 'Method Not Allowed' } });
-  }
-
+async function handler(req: AuthenticatedRequest, res: VercelResponse) {
   // Check for required environment variables
   if (!process.env.STRIPE_SECRET_KEY) {
-    return res.status(501).json({ error: { code: 'STRIPE_NOT_CONFIGURED', message: 'Stripe not configured' } });
+    log.error('Stripe not configured', { error: ERROR_CODES.CONFIGURATION_ERROR });
+    return res.status(HTTP_STATUS.NOT_IMPLEMENTED).json({
+      error: {
+        code: ERROR_CODES.CONFIGURATION_ERROR,
+        message: 'Stripe not configured'
+      }
+    });
   }
 
-  // Require authenticated user
-  const userId = req.headers['x-user-id'] as string;
-  if (!userId) {
-    return res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Authentication required' } });
-  }
+  // Get validated user from middleware
+  const userId = req.user.id;
+  const userEmail = req.user.email;
 
-  // Get user email for metadata (required for webhook processing)
-  const userEmail = req.headers['x-user-email'] as string;
   if (!userEmail) {
-    return res.status(400).json({ error: { code: 'MISSING_EMAIL', message: 'User email required' } });
+    log.warn('Missing user email', { userId: userId.substring(0, 8) });
+    return res.status(HTTP_STATUS.BAD_REQUEST).json({
+      error: {
+        code: ERROR_CODES.INVALID_INPUT,
+        message: 'User email required for checkout'
+      }
+    });
   }
 
   try {
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-    // Parse and validate request body
-    const { plan } = req.body;
-    
-    if (!plan || typeof plan !== 'string') {
-      return res.status(400).json({ error: { code: 'INVALID_PLAN', message: 'Plan is required' } });
-    }
-
-    if (!(plan in PLAN_PRICE_MAP)) {
-      return res.status(400).json({ error: { code: 'INVALID_PLAN', message: 'Invalid plan specified' } });
-    }
-
+    // Get validated plan from middleware (already validated by Zod schema)
+    const { plan } = (req as any).validatedBody;
     const planType = plan as PlanType;
     const priceId = PLAN_PRICE_MAP[planType];
+
+    log.info('Creating checkout session', {
+      userId: userId.substring(0, 8),
+      plan: planType,
+      email: userEmail
+    });
 
     // Determine mode based on plan type
     const mode: Stripe.Checkout.SessionCreateParams.Mode = planType.startsWith('credits_') ? 'payment' : 'subscription';
@@ -88,27 +80,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       allow_promotion_codes: true,
     });
 
-    return res.status(200).json({ url: session.url });
+    log.info('Checkout session created', {
+      userId: userId.substring(0, 8),
+      sessionId: session.id,
+      plan: planType
+    });
+
+    return res.status(HTTP_STATUS.OK).json({ url: session.url });
   } catch (error) {
-    console.error('Stripe checkout error:', error);
-    
+    log.error('Stripe checkout error', error as Error, {
+      userId: userId.substring(0, 8)
+    });
+
     if (error instanceof Stripe.errors.StripeError) {
-      return res.status(400).json({ 
-        error: { 
-          code: 'STRIPE_ERROR', 
-          message: error.message 
-        } 
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        error: {
+          code: ERROR_CODES.STRIPE_ERROR,
+          message: error.message
+        }
       });
     }
-    
-    return res.status(500).json({ 
-      error: { 
-        code: 'INTERNAL_ERROR', 
-        message: 'Failed to create checkout session' 
-      } 
+
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      error: {
+        code: ERROR_CODES.INTERNAL_ERROR,
+        message: 'Failed to create checkout session'
+      }
     });
   }
 }
 
-
-
+// Apply middleware: CORS -> Auth -> Validation -> Method validation
+export default compose([
+  withCORS,
+  withAuth,
+  withValidation(stripeCheckoutSchema),
+  (handler) => withMethods(['POST'], handler)
+])(handler);

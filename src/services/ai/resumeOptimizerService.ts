@@ -1,52 +1,53 @@
 import { RESUME_OPTIMIZER_SYSTEM_PROMPT } from './prompts/resumeOptimizerPrompt';
-import { CVData, JobDescription, UserProfile } from '../../types';
+import { UserProfile } from '../../types';
 import { cleanDocumentContent, fixCharacterEncoding, validateDocumentContent } from '../../utils/textUtils';
-import { sendAiMessage, AiHistoryItem } from './aiProxyClient';
-import { AppError, ErrorCode, mapUnknownError } from '../../utils/errors';
-import { checkAndConsumeLimit, getErrorMessage } from '../creditService';
+import { AppError, ErrorCode } from '../../utils/errors';
+import { BaseAIService } from './core/BaseAIService';
+import { logger } from '../../utils/logger';
 
-export class ResumeOptimizerService {
-  private history: AiHistoryItem[] = [];
+/**
+ * Resume Optimizer Service
+ * Creates ATS-optimized resumes tailored to specific job descriptions
+ * Extends BaseAIService to eliminate code duplication
+ */
+export class ResumeOptimizerService extends BaseAIService {
   private resumeData: { targetRole?: string; experienceLevel?: string; keyFocus?: string } = {};
   private isCollectingData = false;
   private currentStep = 0;
-  
+
   private readonly steps = [
     { key: 'targetRole', question: 'What specific role title should I optimize for? (e.g., "Senior SAP Consultant", "Finance Manager")' },
     { key: 'experienceLevel', question: 'What experience level should I emphasize? (e.g., "Senior", "Lead", "Manager", "Specialist")' },
     { key: 'keyFocus', question: 'What should be the main focus? (e.g., "Technical expertise", "Leadership", "Analytics", "Automation")' }
   ];
 
-  async initializeChat(cvData: CVData, jobDescription: JobDescription, userProfile?: UserProfile) {
-    // Variables are used directly in the prompt, no need to store as instance variables
-    
-    const profileSection = userProfile ? `
-CANDIDATE PROFILE:
-${userProfile.content}
-` : '';
-
-    const initialContext = `${RESUME_OPTIMIZER_SYSTEM_PROMPT}
-${profileSection}
-
-CV CONTENT:
-${cvData.content}
-
-JOB DESCRIPTION:
-${jobDescription.content}
-
-You now have the candidate's ${userProfile ? 'profile, ' : ''}CV and the job description. You can help create an ATS-optimized resume.`;
-
-    this.history = [
-      { role: 'user', parts: [{ text: initialContext }] },
-      { role: 'model', parts: [{ text: `I have analyzed the candidate's ${userProfile ? 'profile, ' : ''}CV and job description. I\'m ready to help you create an ATS-optimized resume tailored for this position.` }] }
-    ];
+  protected getSystemPrompt(): string {
+    return RESUME_OPTIMIZER_SYSTEM_PROMPT;
   }
 
-  // Phase 2: direct generation from provided specs (non-breaking)
+  protected getServiceName(): string {
+    return 'ResumeOptimizerService';
+  }
+
+  protected getInitialResponseMessage(userProfile?: UserProfile): string {
+    return `I have analyzed the candidate's ${userProfile ? 'profile, ' : ''}CV and job description. I'm ready to help you create an ATS-optimized resume tailored for this position.`;
+  }
+
+  /**
+   * Clear additional state beyond history
+   */
+  protected onReset(): void {
+    this.resumeData = {};
+    this.isCollectingData = false;
+    this.currentStep = 0;
+  }
+
+  /**
+   * Generate optimized resume from provided specs (non-interactive mode)
+   * Consumes 1 credit
+   */
   async generateFromSpecs(specs: { targetRole?: string; experienceLevel?: string; keyFocus?: string }): Promise<string> {
-    if (!this.history.length) {
-      throw new Error('Chat not initialized');
-    }
+    this.ensureInitialized();
 
     // Reset any previous collection state
     this.isCollectingData = false;
@@ -62,11 +63,15 @@ You now have the candidate's ${userProfile ? 'profile, ' : ''}CV and the job des
     return await this.generateOptimizedResume();
   }
 
+  /**
+   * Start interactive data collection flow
+   * Returns first question
+   */
   startDataCollection(): string {
     this.isCollectingData = true;
     this.currentStep = 0;
     this.resumeData = {};
-    
+
     return `🎯 **Resume Optimizer Started!**
 
 I'll help you create an ATS-optimized resume tailored specifically for this position! I need to collect a few details first.
@@ -75,6 +80,10 @@ I'll help you create an ATS-optimized resume tailored specifically for this posi
 ${this.steps[0].question}`;
   }
 
+  /**
+   * Handle user response during data collection
+   * Returns next question or generates resume if complete
+   */
   async handleDataCollection(message: string): Promise<string> {
     const currentStepData = this.steps[this.currentStep];
     (this.resumeData as any)[currentStepData.key] = message.trim();
@@ -94,24 +103,15 @@ ${nextStep.question}`;
     return await this.generateOptimizedResume();
   }
 
+  /**
+   * Generate optimized resume using collected data
+   * Private method called by generateFromSpecs() or handleDataCollection()
+   */
   private async generateOptimizedResume(): Promise<string> {
-    if (!this.history.length) {
-      throw new Error('Chat not initialized');
-    }
+    this.ensureInitialized();
 
-    // ✅ KREDİ KONTROLÜ - Resume optimization 1 kredi tüketir
-    const creditCheck = await checkAndConsumeLimit('optimize_resume');
-    
-    if (!creditCheck.allowed) {
-      const errorMessage = getErrorMessage(creditCheck);
-      throw new AppError(ErrorCode.QuotaExceeded, errorMessage);
-    }
-
-    console.log('✅ Credit check passed for resume optimization:', {
-      planType: creditCheck.planType,
-      creditsRemaining: creditCheck.currentCredits,
-      dailyUsage: creditCheck.dailyUsage
-    });
+    // Check and consume credit
+    await this.checkAndConsume('optimize_resume');
 
     try {
       const prompt = `Create a professional, ATS-optimized resume using these specifications:
@@ -143,63 +143,59 @@ CRITICAL INSTRUCTIONS:
 Generate ONLY the resume content following the mandatory structure. No introductory text, no explanations, no AI responses - just the clean resume content ready for export.
 \n\nRESPONSE FORMAT (MANDATORY):\nOutput ONLY valid JSON with this exact shape and nothing else (no prose, no code fences):\n{\n  "content": "string (the full, final resume content)"\n}`;
 
-      const raw = await sendAiMessage(this.history, prompt);
+      const raw = await this.sendMessage(prompt);
+
       // Parse JSON content robustly
-      const sanitizeToJson = (text: string): string => {
-        const withoutFences = text.replace(/```json|```/gi, '').trim();
-        const match = withoutFences.match(/\{[\s\S]*\}/);
-        return match ? match[0] : withoutFences;
-      };
       let optimizedResume: string;
       try {
-        const parsed = JSON.parse(sanitizeToJson(raw));
+        const parsed = JSON.parse(this.sanitizeToJson(raw));
         optimizedResume = typeof parsed?.content === 'string' ? parsed.content : raw;
       } catch {
         optimizedResume = raw;
       }
-      
+
       // Clean the resume content using utility function
       optimizedResume = cleanDocumentContent(optimizedResume);
-      
+
       // Apply international character fixes (handles Turkish, German, Spanish, etc.)
       optimizedResume = fixCharacterEncoding(optimizedResume);
-      
+
       // Validate resume quality - retry if malformed
       const isValid = validateDocumentContent(optimizedResume, 'resume');
       if (!isValid) {
-        console.warn('Resume validation failed, attempting to fix character issues');
+        logger.warn('Resume validation failed, attempting to fix character issues');
         // Apply character fixes again as a fallback
         optimizedResume = fixCharacterEncoding(optimizedResume);
-        
+
         // If still invalid after fixes, log warning but proceed
         const stillInvalid = !validateDocumentContent(optimizedResume, 'resume');
         if (stillInvalid) {
-          console.warn('Resume still has formatting issues after fixes, but proceeding');
+          logger.warn('Resume still has formatting issues after fixes, but proceeding');
         }
       }
-      
+
       // Reset the data collection state
       this.resumeData = {};
-      
-      // Phase 3: Return clean resume content only (no wrapper/CTA)
+
+      // Return clean resume content only (no wrapper/CTA)
       return optimizedResume;
-      
+
     } catch (error) {
       this.isCollectingData = false;
       this.resumeData = {};
-      const mapped = mapUnknownError(error);
-      throw new AppError(mapped.code || ErrorCode.AiFailed, 'AI failed to optimize resume', {}, error);
+      throw new AppError(
+        ErrorCode.AiFailed,
+        'AI failed to optimize resume',
+        {},
+        error
+      );
     }
   }
 
+  /**
+   * Check if currently collecting data from user
+   */
   isCollecting(): boolean {
     return this.isCollectingData;
-  }
-
-  reset() {
-    this.history = [];
-    this.resumeData = {};
-    this.isCollectingData = false;
-    this.currentStep = 0;
   }
 }

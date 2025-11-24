@@ -1,52 +1,35 @@
-import { VercelRequest, VercelResponse } from '@vercel/node';
+import { VercelResponse } from '@vercel/node';
 import { getSupabaseClient } from './_lib/supabase.js';
+import { compose, withCORS, withOptionalAuth, withMethods, UserRequest } from './_lib/middleware.js';
+import { LIMITS, HTTP_STATUS, ERROR_CODES } from '../src/config/constants.js';
+import { createApiLogger } from '../src/utils/logger.js';
+
+const log = createApiLogger('/api/quota');
 
 // ================================================================
 // QUOTA API - SUPABASE VERSION
 // ================================================================
-// Bu API artık Redis yerine Supabase kullanır ve akıllı kredi sistemi 
-// ile entegre çalışır. Roadmap'teki yeni logic'i implement eder.
+// Uses Supabase and integrates with smart credit system
+// Supports both authenticated and anonymous users
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Basic CORS (MVP): allow site origins only
-  const origin = req.headers.origin || '';
-  const allowed = ['https://resumetune.io', 'http://localhost:5173'];
-  if (allowed.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Vary', 'Origin');
-  }
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'content-type, x-user-id');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(204).end();
-  }
-
-  if (req.method !== 'GET') {
-    res.setHeader('Allow', 'GET, OPTIONS');
-    return res.status(405).json({ error: { code: 'METHOD_NOT_ALLOWED', message: 'Method Not Allowed' } });
-  }
-
-  // Get user ID (authenticated veya anonymous)
-  const userId = req.headers['x-user-id'] as string;
-  if (!userId) {
-    return res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'User ID required' } });
-  }
-  
-  // Anonymous user detection
-  const isAnonymousUser = userId.startsWith('anon_');
-  console.log(`👤 User type: ${isAnonymousUser ? 'Anonymous' : 'Authenticated'} (${userId})`);
-
+async function handler(req: UserRequest, res: VercelResponse) {
   try {
-    // 1. Supabase client'ı oluştur
+    // 1. Get validated user ID from middleware (authenticated or anonymous)
+    const userId = req.userId;
+    const isAnonymousUser = req.isAnonymous;
+
+    log.debug('User quota request', {
+      userType: isAnonymousUser ? 'Anonymous' : 'Authenticated',
+      userId: userId.substring(0, 8)
+    });
+
+    // 2. Get Supabase client
     const supabase = getSupabaseClient();
-    
-    // 2. Bugünün tarihini al
+
+    // 3. Get today's date
     const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD format
-    
-    console.log(`📊 Fetching quota info for user ${userId} on ${today}`);
-    
-    // 3. User type'a göre farklı data fetching
+
+    // 4. Fetch data based on user type
     let todayUsage = 0;
     let userCredits = 0;
     let subscriptionPlan = null;
@@ -54,30 +37,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (isAnonymousUser) {
       // Anonymous user: Only daily usage, no user record
-      console.log(`🔍 Fetching anonymous user data for ${userId}`);
-      
+      log.debug('Fetching anonymous user data', { userId: userId.substring(0, 8) });
+
       const usageResult = await supabase
         .from('daily_usage')
         .select('ai_calls_count')
         .eq('user_id', userId)
         .eq('usage_date', today)
         .maybeSingle();
-      
+
       todayUsage = usageResult.data?.ai_calls_count || 0;
-      
+
       if (usageResult.error && usageResult.error.code !== 'PGRST116') {
-        console.warn('⚠️ Anonymous daily usage query warning:', usageResult.error);
+        log.warn('Anonymous daily usage query warning', { error: usageResult.error });
       }
       
     } else {
       // Authenticated user: Parallel queries for efficiency
-      console.log(`🔍 Fetching authenticated user data for ${userId}`);
-      
-      // 🛠️ DEBUG: Check Supabase client configuration
-      console.log('🔧 Debug: Supabase client info:', {
-        hasServiceRole: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-        supabaseUrl: process.env.SUPABASE_URL?.substring(0, 30) + '...',
-      });
+      log.debug('Fetching authenticated user data', { userId: userId.substring(0, 8) });
       
       const [usageResult, userResult] = await Promise.all([
         // Günlük kullanım bilgisi
@@ -96,34 +73,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .single()
       ]);
 
-      // 🛠️ DEBUG: Log query results for troubleshooting
-      console.log('🔧 Debug: Supabase query results:', {
-        usageResult: {
-          data: usageResult.data,
-          error: usageResult.error,
-          status: usageResult.status
-        },
-        userResult: {
-          data: userResult.data,
-          error: userResult.error,
-          status: userResult.status
-        }
-      });
-
       // Parse results
       todayUsage = usageResult.data?.ai_calls_count || 0;
-      
+
       if (usageResult.error && usageResult.error.code !== 'PGRST116') {
-        console.warn('⚠️ Daily usage query warning:', usageResult.error);
+        log.warn('Daily usage query warning', { error: usageResult.error });
       }
 
       if (userResult.error) {
         if (userResult.error.code === 'PGRST116') {
-          console.warn('⚠️ User not found in database, treating as free user');
+          log.warn('User not found in database, treating as free user', { userId: userId.substring(0, 8) });
         } else {
-          console.error('❌ User query error:', userResult.error);
+          log.error('User query error', userResult.error as Error, { userId: userId.substring(0, 8) });
           // 🛠️ GRACEFUL FALLBACK: Don't throw error, just log and continue
-          console.warn('❌ Continuing with default values due to user query error');
+          log.warn('Continuing with default values due to user query error');
         }
       } else {
         userCredits = userResult.data?.credits_balance || 0;
@@ -132,28 +95,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // 4. Smart plan type detection
-
-    // 5. AKILLI LİMİT HESAPLAMA (Roadmap'ten)
+    // 5. Smart limit calculation
     const creditsBalance = userCredits;
     const hasCredits = creditsBalance > 0;
     const hasActiveSubscription = subscriptionStatus === 'active';
     
     let dailyLimit: number;
     let planType: string;
-    
+
     if (hasCredits) {
-      dailyLimit = 999; // Sınırsız (kredi sahibi)
+      dailyLimit = 999; // Unlimited (credit holder)
       planType = 'credits';
     } else if (hasActiveSubscription) {
-      dailyLimit = 999; // Sınırsız (abonelik sahibi)
+      dailyLimit = 999; // Unlimited (subscription holder)
       planType = 'subscription';
     } else {
       dailyLimit = 3; // Free user
       planType = 'free';
     }
 
-    // 7. Response oluştur (frontend uyumlu format)
+    // 6. Build response (frontend-compatible format)
     const response = {
       quota: {
         today: todayUsage,
@@ -164,8 +125,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       plan_type: planType // Yeni alan: hangi plan türünde olduğu
     };
 
-    console.log(`✅ Quota info fetched successfully:`, {
-      userId: userId.substring(0, 8) + '...',
+    log.debug('Quota info fetched successfully', {
+      userId: userId.substring(0, 8),
       todayUsage,
       dailyLimit,
       creditsBalance,
@@ -173,20 +134,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       hasActiveSubscription
     });
 
-    return res.status(200).json(response);
+    return res.status(HTTP_STATUS.OK).json(response);
 
   } catch (error) {
-    console.error('❌ Quota API error:', error);
-    
-    // Hata durumunda güvenli fallback değerleri döndür
-    return res.status(500).json({ 
-      error: { 
-        code: 'INTERNAL_ERROR', 
-        message: 'Failed to fetch quota information' 
-      } 
+    log.error('Quota API error', error as Error);
+
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      error: {
+        code: ERROR_CODES.INTERNAL_ERROR,
+        message: 'Failed to fetch quota information'
+      }
     });
   }
 }
+
+// Apply middleware: CORS -> OptionalAuth -> Method validation
+export default compose([
+  withCORS,
+  withOptionalAuth,
+  (handler) => withMethods(['GET'], handler)
+])(handler);
 
 // ================================================================
 // RESPONSE FORMAT DOCUMENTATION

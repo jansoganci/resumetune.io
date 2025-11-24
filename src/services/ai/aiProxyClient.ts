@@ -1,30 +1,9 @@
+import { getAuthHeaders, getCurrentUserId } from '../../utils/apiClient';
+
 export type AiHistoryItem = {
   role: 'user' | 'model';
   parts: { text: string }[];
 };
-
-// Get user ID from Supabase session or generate anonymous ID
-async function getUserId(): Promise<string> {
-  try {
-    // Import supabase client dynamically to avoid circular dependency issues
-    const { supabase } = await import('../../config/supabase');
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (session?.user?.id) {
-      return session.user.id;
-    }
-  } catch (error) {
-    console.warn('Failed to get user from Supabase session:', error);
-  }
-  
-  // Fallback to anonymous ID stored in localStorage
-  let anonId = localStorage.getItem('anon-id');
-  if (!anonId) {
-    anonId = `anon_${Date.now()}_${Math.random().toString(36).substring(2)}`;
-    localStorage.setItem('anon-id', anonId);
-  }
-  return anonId;
-}
 
 export async function sendAiMessage(
   history: AiHistoryItem[],
@@ -39,12 +18,13 @@ export async function sendAiMessage(
   }));
   const safeMessage = (message || '').slice(0, MAX_CHARS);
 
-  // Get user ID for quota tracking
-  const userId = await getUserId();
+  // Get user ID for tracking (logged but not used for auth)
+  const userId = await getCurrentUserId();
 
   // 🚨 DEBUG - Log request data (dev only)
   if (import.meta.env.DEV) {
     console.log('🔍 AI Proxy Request Debug:', {
+      userId: userId.substring(0, 8) + '...',
       history: safeHistory,
       message: safeMessage,
       model,
@@ -54,12 +34,12 @@ export async function sendAiMessage(
     });
   }
 
+  // Get authentication headers (JWT token or anonymous ID)
+  const headers = await getAuthHeaders();
+
   const response = await fetch('/api/ai/proxy', {
     method: 'POST',
-    headers: { 
-      'Content-Type': 'application/json',
-      'x-user-id': userId
-    },
+    headers,
     body: JSON.stringify({ history: safeHistory, message: safeMessage, model })
   });
 
@@ -97,14 +77,8 @@ export async function sendAiMessageWithCaptcha(
   }));
   const safeMessage = (message || '').slice(0, MAX_CHARS);
 
-  // Get user ID for quota tracking
-  const userId = await getUserId();
-
-  // Prepare headers
-  const headers: Record<string, string> = { 
-    'Content-Type': 'application/json',
-    'x-user-id': userId
-  };
+  // Get authentication headers (JWT token or anonymous ID)
+  const headers = await getAuthHeaders();
 
   // Add CAPTCHA token if provided
   if (captchaToken) {

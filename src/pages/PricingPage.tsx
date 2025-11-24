@@ -3,6 +3,9 @@ import { Check, Zap, CreditCard, Users, Star } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../components/ToastProvider';
 import { supabase } from '../config/supabase';
+import { getAuthHeaders } from '../utils/apiClient';
+import { STRIPE_PLANS } from '../config/constants';
+import { logger } from '../utils/logger';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 
@@ -30,19 +33,16 @@ export default function PricingPage() {
       }
 
       // User is authenticated, proceed with checkout
-      const response = await fetch('/api/stripe/create-checkout-session', {
+      const headers = await getAuthHeaders();
+      const response = await fetch('/api/stripe-checkout', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-id': session.user.id,
-          'x-user-email': session.user.email || '',
-        },
+        headers,
         body: JSON.stringify({ plan }),
       });
 
       if (!response.ok) {
         const error = await response.json();
-        console.error('Checkout error:', error);
+        logger.error('Checkout error', { status: response.status, error });
         toast.error('Failed to start checkout. Please try again.');
         return;
       }
@@ -55,36 +55,37 @@ export default function PricingPage() {
         toast.error('Failed to create checkout session. Please try again.');
       }
     } catch (error) {
-      console.error('Error handling plan selection:', error);
+      logger.error('Error handling plan selection', error as Error, { plan });
       toast.error('An error occurred. Please try again.');
     } finally {
       setLoading(null);
     }
   };
 
+  // Use centralized plan configuration
   const plans = [
     {
-      id: 'credits_50',
-      name: '50 Credits',
-      price: '$9',
+      id: STRIPE_PLANS.CREDITS_50.id,
+      name: STRIPE_PLANS.CREDITS_50.name,
+      price: STRIPE_PLANS.CREDITS_50.price,
       description: 'Perfect for trying out our AI tools',
       features: [
-        '50 AI analysis credits',
+        `${STRIPE_PLANS.CREDITS_50.credits} AI analysis credits`,
         'Job matching & cover letters',
         'Resume optimization',
         'Priority support',
         'Credits never expire'
       ],
       popular: false,
-      buttonText: 'Buy 50 Credits'
+      buttonText: `Buy ${STRIPE_PLANS.CREDITS_50.credits} Credits`
     },
     {
-      id: 'credits_200',
-      name: '200 Credits',
-      price: '$19',
+      id: STRIPE_PLANS.CREDITS_200.id,
+      name: STRIPE_PLANS.CREDITS_200.name,
+      price: STRIPE_PLANS.CREDITS_200.price,
       description: 'Best value for active job seekers',
       features: [
-        '200 AI analysis credits',
+        `${STRIPE_PLANS.CREDITS_200.credits} AI analysis credits`,
         'Job matching & cover letters',
         'Resume optimization',
         'Priority support',
@@ -92,16 +93,16 @@ export default function PricingPage() {
         'Great value per credit'
       ],
       popular: true,
-      buttonText: 'Buy 200 Credits'
+      buttonText: `Buy ${STRIPE_PLANS.CREDITS_200.credits} Credits`
     },
     {
-      id: 'sub_100',
-      name: 'Pro Monthly',
-      price: '$9',
+      id: STRIPE_PLANS.SUB_100.id,
+      name: STRIPE_PLANS.SUB_100.name,
+      price: STRIPE_PLANS.SUB_100.price,
       period: '/month',
-      description: '300 credits monthly for consistent users',
+      description: `${STRIPE_PLANS.SUB_100.creditsPerMonth} credits monthly for consistent users`,
       features: [
-        '300 credits every month',
+        `${STRIPE_PLANS.SUB_100.creditsPerMonth} credits every month`,
         'Job matching & cover letters',
         'Resume optimization',
         'Priority support',
@@ -112,13 +113,13 @@ export default function PricingPage() {
       buttonText: 'Subscribe Monthly'
     },
     {
-      id: 'sub_300',
-      name: 'Pro Yearly',
-      price: '$89',
+      id: STRIPE_PLANS.SUB_300.id,
+      name: STRIPE_PLANS.SUB_300.name,
+      price: STRIPE_PLANS.SUB_300.price,
       period: '/year',
       description: 'Best value for career professionals',
       features: [
-        '300 credits every month',
+        `${STRIPE_PLANS.SUB_300.creditsPerMonth} credits every month`,
         'Job matching & cover letters',
         'Resume optimization',
         'Priority support',

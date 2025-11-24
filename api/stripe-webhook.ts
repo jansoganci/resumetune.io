@@ -2,6 +2,10 @@ import Stripe from 'stripe';
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { generateInvoiceHTML, generateInvoicePDF, sendInvoiceEmail, InvoiceData } from './_lib/utils.js';
 import { recordCreditTransaction, updateUserCredits, updateUserSubscription, CreditTransaction, getSupabaseClient } from './_lib/supabase.js';
+import { HTTP_STATUS, ERROR_CODES } from '../src/config/constants.js';
+import { createApiLogger } from '../src/utils/logger.js';
+
+const log = createApiLogger('/api/stripe-webhook');
 
 // ================================================================
 // REDIS REMOVED! 🎉
@@ -51,12 +55,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     .map(([key]) => key);
 
   if (missingVars.length > 0) {
-    console.error('Missing required environment variables:', missingVars);
-    return res.status(501).json({ 
-      error: { 
-        code: 'CONFIGURATION_ERROR', 
-        message: `Missing environment variables: ${missingVars.join(', ')}` 
-      } 
+    log.error('Missing required environment variables', { missingVars });
+    return res.status(HTTP_STATUS.NOT_IMPLEMENTED).json({
+      error: {
+        code: ERROR_CODES.CONFIGURATION_ERROR,
+        message: `Missing environment variables: ${missingVars.join(', ')}`
+      }
     });
   }
 
@@ -72,8 +76,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Verify webhook signature
     const signature = req.headers['stripe-signature'] as string;
     if (!signature) {
-      console.error('Missing Stripe signature header');
-      return res.status(400).json({ error: { code: 'MISSING_SIGNATURE', message: 'Missing signature' } });
+      log.error('Missing Stripe signature header');
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({ error: { code: 'MISSING_SIGNATURE', message: 'Missing signature' } });
     }
 
     let event: Stripe.Event;
@@ -85,18 +89,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         process.env.STRIPE_WEBHOOK_SECRET!
       );
     } catch (err) {
-      console.error('Webhook signature verification failed:', err);
+      log.error('Webhook signature verification failed:', err);
       return res.status(400).json({ error: { code: 'INVALID_SIGNATURE', message: 'Invalid signature' } });
     }
 
     // Handle the event
-    console.log(`Processing webhook event: ${event.type} (ID: ${event.id})`);
+    log.debug(`Processing webhook event: ${event.type} (ID: ${event.id})`);
     
     switch (event.type) {
       case 'checkout.session.completed':
         try {
           const session = event.data.object as Stripe.Checkout.Session;
-          console.log(`Checkout session details:`, {
+          log.debug(`Checkout session details:`, {
             sessionId: session.id,
             mode: session.mode,
             paymentStatus: session.payment_status,
@@ -106,8 +110,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           
           await handleCheckoutCompleted(session);
         } catch (error) {
-          console.error(`Failed to handle checkout.session.completed for ${event.id}:`, error);
-          console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace available');
+          log.error(`Failed to handle checkout.session.completed for ${event.id}:`, error);
+          log.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace available');
           return res.status(500).json({ error: { code: 'CHECKOUT_PROCESSING_FAILED', message: 'Failed to process checkout' } });
         }
         break;
@@ -115,7 +119,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         try {
           await handleInvoicePaymentSucceeded(event.data.object as Stripe.Invoice);
         } catch (error) {
-          console.error(`Failed to handle invoice.payment_succeeded for ${event.id}:`, error);
+          log.error(`Failed to handle invoice.payment_succeeded for ${event.id}:`, error);
           return res.status(500).json({ error: { code: 'INVOICE_PROCESSING_FAILED', message: 'Failed to process invoice' } });
         }
         break;
@@ -123,17 +127,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         try {
           await handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
         } catch (error) {
-          console.error(`Failed to handle customer.subscription.deleted for ${event.id}:`, error);
+          log.error(`Failed to handle customer.subscription.deleted for ${event.id}:`, error);
           return res.status(500).json({ error: { code: 'SUBSCRIPTION_DELETE_FAILED', message: 'Failed to process subscription deletion' } });
         }
         break;
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        log.debug(`Unhandled event type: ${event.type}`);
     }
 
     return res.status(200).json({ received: true });
   } catch (error) {
-    console.error('Webhook error:', error);
+    log.error('Webhook error:', error);
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Internal server error' } });
   }
 }
@@ -143,11 +147,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
  */
 async function generateAndSendInvoice(invoiceData: InvoiceData) {
   try {
-    console.log('Starting invoice generation for:', invoiceData.customerEmail);
+    log.debug('Starting invoice generation for:', invoiceData.customerEmail);
     
     // Generate PDF invoice
     const pdfBuffer = await generateInvoicePDF(invoiceData);
-    console.log('PDF generated successfully, size:', pdfBuffer.length, 'bytes');
+    log.debug('PDF generated successfully, size:', pdfBuffer.length, 'bytes');
     
     // Send email with PDF attachment
     const emailSent = await sendInvoiceEmail(
@@ -157,38 +161,38 @@ async function generateAndSendInvoice(invoiceData: InvoiceData) {
     );
     
     if (emailSent) {
-      console.log('Invoice email sent successfully to:', invoiceData.customerEmail);
+      log.debug('Invoice email sent successfully to:', invoiceData.customerEmail);
     } else {
-      console.error('Failed to send invoice email to:', invoiceData.customerEmail);
+      log.error('Failed to send invoice email to:', invoiceData.customerEmail);
     }
     
     return emailSent;
   } catch (error) {
-    console.error('Error generating/sending invoice:', error);
+    log.error('Error generating/sending invoice:', error);
     return false;
   }
 }
 
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
-  console.log(`Starting checkout processing for session: ${session.id}`);
-  console.log(`Session metadata:`, JSON.stringify(session.metadata, null, 2));
-  console.log(`Session customer_email:`, session.customer_email);
-  console.log(`Session mode:`, session.mode);
-  console.log(`Session payment_status:`, session.payment_status);
+  log.debug(`Starting checkout processing for session: ${session.id}`);
+  log.debug(`Session metadata:`, JSON.stringify(session.metadata, null, 2));
+  log.debug(`Session customer_email:`, session.customer_email);
+  log.debug(`Session mode:`, session.mode);
+  log.debug(`Session payment_status:`, session.payment_status);
   
   const userId = session.metadata?.userId;
   const userEmail = session.metadata?.userEmail;
   const plan = session.metadata?.plan;
   
-  console.log(`🔍 EXTRACTED VALUES:`, { userId, userEmail, plan });
+  log.debug(`🔍 EXTRACTED VALUES:`, { userId, userEmail, plan });
   
   if (!userId) {
-    console.error('No userId in session metadata:', session.id);
+    log.error('No userId in session metadata:', session.id);
     throw new Error('Missing userId in session metadata');
   }
 
   if (!userEmail) {
-    console.error('No userEmail in session metadata:', session.id);
+    log.error('No userEmail in session metadata:', session.id);
     throw new Error('Missing userEmail in session metadata');
   }
 
@@ -202,8 +206,8 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       .single();
       
     if (userError || !user) {
-      console.error(`❌ User ${userId} not found in database:`, userError);
-      console.log(`🔧 ATTEMPTING TO CREATE USER: ${userId} with email: ${userEmail}`);
+      log.error(`❌ User ${userId} not found in database:`, userError);
+      log.debug(`🔧 ATTEMPTING TO CREATE USER: ${userId} with email: ${userEmail}`);
       
       // Create the user if they don't exist (fallback for incomplete auth flow)
       const { data: newUser, error: createError } = await supabase
@@ -218,23 +222,23 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         .single();
         
       if (createError) {
-        console.error(`❌ Failed to create user ${userId}:`, createError);
+        log.error(`❌ Failed to create user ${userId}:`, createError);
         throw new Error(`User not found and creation failed: ${userId}`);
       }
       
-      console.log(`✅ Created missing user: ${userId}`);
+      log.debug(`✅ Created missing user: ${userId}`);
       // Continue to credit processing with new user
     }
     
     // Validate email consistency
     if (user && user.email !== userEmail) {
-      console.error(`Email mismatch for user ${userId}: DB=${user.email}, Stripe=${userEmail}`);
+      log.error(`Email mismatch for user ${userId}: DB=${user.email}, Stripe=${userEmail}`);
       throw new Error(`Email mismatch for user ${userId}`);
     }
     
-    console.log(`✅ User validation passed for ${userId} (${userEmail})`);
+    log.debug(`✅ User validation passed for ${userId} (${userEmail})`);
   } catch (validationError) {
-    console.error('User validation failed:', validationError);
+    log.error('User validation failed:', validationError);
     throw validationError;
   }
 
@@ -243,7 +247,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const idempotencyKey = `stripe_session_${session.id}`;
   
   // Idempotency check using Supabase webhook_cache
-  console.log(`🔍 Checking idempotency for session: ${session.id}`);
+  log.debug(`🔍 Checking idempotency for session: ${session.id}`);
   
   try {
     const { data: cacheResult, error: cacheError } = await supabase
@@ -257,20 +261,20 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       });
 
     if (cacheError) {
-      console.error('❌ Webhook cache error:', cacheError);
+      log.error('❌ Webhook cache error:', cacheError);
       throw new Error(`Webhook cache failed: ${cacheError.message}`);
     }
 
     // Check if this is a duplicate
     if (cacheResult?.is_duplicate) {
-      console.log(`✅ Session ${session.id} already processed at ${cacheResult.processed_at}, skipping`);
+      log.debug(`✅ Session ${session.id} already processed at ${cacheResult.processed_at}, skipping`);
       return;
     }
 
-    console.log(`🚀 Processing new session ${session.id} (first time)`);
+    log.debug(`🚀 Processing new session ${session.id} (first time)`);
 
   } catch (idempotencyError) {
-    console.error('❌ Idempotency check failed:', idempotencyError);
+    log.error('❌ Idempotency check failed:', idempotencyError);
     throw new Error(`Idempotency protection failed: ${idempotencyError instanceof Error ? idempotencyError.message : 'Unknown error'}`);
   }
 
@@ -285,15 +289,15 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         limit: 100,
       });
       lineItems = lineItemsResponse.data;
-      console.log(`Retrieved ${lineItems.length} line items for session ${session.id}`);
+      log.debug(`Retrieved ${lineItems.length} line items for session ${session.id}`);
     } catch (lineItemError) {
-      console.error('Failed to retrieve line items:', lineItemError);
+      log.error('Failed to retrieve line items:', lineItemError);
       throw new Error(`Failed to retrieve line items: ${lineItemError instanceof Error ? lineItemError.message : 'Unknown error'}`);
     }
 
     if (session.mode === 'payment') {
       // Handle one-time payment for credits
-      console.log(`Processing payment mode for ${lineItems.length} line items`);
+      log.debug(`Processing payment mode for ${lineItems.length} line items`);
       for (const item of lineItems) {
         const priceId = item.price?.id;
         let creditsToAdd = 0;
@@ -307,12 +311,12 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
             creditsToAdd = 200;
             break;
           default:
-            console.warn(`Unknown price ID for credits: ${priceId}`);
+            log.warn(`Unknown price ID for credits: ${priceId}`);
             continue;
         }
 
         if (creditsToAdd > 0) {
-          console.log(`Processing ${creditsToAdd} credits for price ID: ${priceId}`);
+          log.debug(`Processing ${creditsToAdd} credits for price ID: ${priceId}`);
           
           // Dual storage: Update both Supabase (authoritative) and Redis (cache)
           try {
@@ -328,19 +332,19 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
               plan_name: `${creditsToAdd} Credits`
             };
             
-            console.log(`Recording transaction:`, JSON.stringify(transaction, null, 2));
+            log.debug(`Recording transaction:`, JSON.stringify(transaction, null, 2));
             await recordCreditTransaction(transaction);
             
             // 2. Update user's total credits in Supabase
-            console.log(`Updating user ${userId} credits by ${creditsToAdd}`);
+            log.debug(`Updating user ${userId} credits by ${creditsToAdd}`);
             const newBalance = await updateUserCredits(userId, creditsToAdd);
-            console.log(`New balance after update: ${newBalance}`);
+            log.debug(`New balance after update: ${newBalance}`);
             
             // ✅ Cache removed - Supabase is now authoritative source
             // api/quota.ts reads directly from Supabase, no cache needed
-            console.log(`✅ Credits updated in Supabase for user ${userId}, new balance: ${newBalance}`);
+            log.debug(`✅ Credits updated in Supabase for user ${userId}, new balance: ${newBalance}`);
             
-            console.log(`✅ Successfully added ${creditsToAdd} credits to user ${userId}. New balance: ${newBalance}`);
+            log.debug(`✅ Successfully added ${creditsToAdd} credits to user ${userId}. New balance: ${newBalance}`);
             
             // Generate and send invoice for credit purchase
             const invoiceData: InvoiceData = {
@@ -359,15 +363,15 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
             setImmediate(async () => {
               try {
                 await generateAndSendInvoice(invoiceData);
-                console.log(`✅ Invoice sent successfully for user ${userId}`);
+                log.debug(`✅ Invoice sent successfully for user ${userId}`);
               } catch (invoiceError) {
-                console.error(`⚠️  Failed to send invoice (non-critical):`, invoiceError);
+                log.error(`⚠️  Failed to send invoice (non-critical):`, invoiceError);
                 // Log error but don't fail the webhook
               }
             });
           } catch (dbError) {
-            console.error('❌ Database operation failed:', dbError);
-            console.error('Database error details:', {
+            log.error('❌ Database operation failed:', dbError);
+            log.error('Database error details:', {
               message: dbError instanceof Error ? dbError.message : String(dbError),
               stack: dbError instanceof Error ? dbError.stack : 'No stack trace'
             });
@@ -377,12 +381,12 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
             throw new Error(`Database operation failed: ${dbError instanceof Error ? dbError.message : String(dbError)}`);
           }
         } else {
-          console.warn(`⚠️  No credits to add for price ID: ${priceId}`);
+          log.warn(`⚠️  No credits to add for price ID: ${priceId}`);
         }
       }
     } else if (session.mode === 'subscription') {
       // Handle subscription
-      console.log(`Processing subscription mode for ${lineItems.length} line items`);
+      log.debug(`Processing subscription mode for ${lineItems.length} line items`);
       for (const item of lineItems) {
         const priceId = item.price?.id;
         let subscriptionPlan: string | null = null;
@@ -396,7 +400,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
             subscriptionPlan = 'sub_300';
             break;
           default:
-            console.warn(`Unknown price ID for subscription: ${priceId}`);
+            log.warn(`Unknown price ID for subscription: ${priceId}`);
             continue;
         }
 
@@ -423,7 +427,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
             const newBalance = await updateUserCredits(userId, initialCredits);
             
             // ✅ Cache removed - Supabase is authoritative source
-            console.log(`✅ Set subscription ${subscriptionPlan} and added ${initialCredits} credits for user ${userId}. New balance: ${newBalance}`);
+            log.debug(`✅ Set subscription ${subscriptionPlan} and added ${initialCredits} credits for user ${userId}. New balance: ${newBalance}`);
             
             // Generate and send invoice for subscription purchase
             const planName = subscriptionPlan === 'sub_100' ? 'Pro Monthly' : 'Pro Yearly';
@@ -441,7 +445,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
             
             await generateAndSendInvoice(invoiceData);
           } catch (dbError) {
-            console.error('❌ Database operation failed:', dbError);
+            log.error('❌ Database operation failed:', dbError);
             // ✅ No Redis fallback - Supabase is single source of truth
             throw new Error(`Subscription database operation failed: ${dbError instanceof Error ? dbError.message : String(dbError)}`);
           }
@@ -459,14 +463,14 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         })
         .eq('idempotency_key', idempotencyKey);
         
-      console.log(`✅ Successfully processed session ${session.id} for user ${userId}`);
+      log.debug(`✅ Successfully processed session ${session.id} for user ${userId}`);
     } catch (updateError) {
-      console.warn('⚠️ Failed to update webhook cache status:', updateError);
+      log.warn('⚠️ Failed to update webhook cache status:', updateError);
       // Non-critical error, don't throw
     }
     
   } catch (error) {
-    console.error('❌ Error processing webhook for session:', session.id, error);
+    log.error('❌ Error processing webhook for session:', session.id, error);
     
     // Update webhook cache with error status
     try {
@@ -482,7 +486,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         })
         .eq('idempotency_key', idempotencyKey);
     } catch (updateError) {
-      console.warn('⚠️ Failed to update webhook cache error status:', updateError);
+      log.warn('⚠️ Failed to update webhook cache error status:', updateError);
     }
     
     throw error; // Re-throw to ensure webhook returns 500 status
@@ -492,14 +496,14 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
   // Only process subscription invoices, not one-time payments
   if (!(invoice as any).subscription) {
-    console.log('Invoice is not for a subscription, skipping');
+    log.debug('Invoice is not for a subscription, skipping');
     return;
   }
 
   // Get userId from invoice metadata
   const userId = (invoice.metadata as any)?.userId;
   if (!userId) {
-    console.error('No userId found in invoice metadata');
+    log.error('No userId found in invoice metadata');
     return;
   }
 
@@ -527,7 +531,7 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
       const newBalance = await updateUserCredits(userId, creditsToAdd);
       
       // ✅ Cache removed - Supabase is authoritative source
-      console.log(`✅ Added ${creditsToAdd} subscription credits to user ${userId}. New balance: ${newBalance}`);
+      log.debug(`✅ Added ${creditsToAdd} subscription credits to user ${userId}. New balance: ${newBalance}`);
       
       // Generate and send invoice for subscription renewal
       const invoiceData: InvoiceData = {
@@ -544,12 +548,12 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
       
       await generateAndSendInvoice(invoiceData);
     } catch (dbError) {
-      console.error('❌ Database operation failed:', dbError);
+      log.error('❌ Database operation failed:', dbError);
       // ✅ No Redis fallback - Supabase is single source of truth
       throw new Error(`Subscription renewal database operation failed: ${dbError instanceof Error ? dbError.message : String(dbError)}`);
     }
   } catch (error) {
-    console.error('Error adding subscription credits in webhook:', error);
+    log.error('Error adding subscription credits in webhook:', error);
     throw error; // Re-throw to ensure proper error handling
   }
 }
@@ -557,7 +561,7 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   const userId = subscription.metadata?.userId;
   if (!userId) {
-    console.error('No userId in subscription metadata');
+    log.error('No userId in subscription metadata');
     return;
   }
 
@@ -565,9 +569,9 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   try {
     const supabase = getSupabaseClient();
     await updateUserSubscription(userId, null, 'canceled');
-    console.log(`✅ Cancelled subscription for user ${userId} in Supabase`);
+    log.debug(`✅ Cancelled subscription for user ${userId} in Supabase`);
   } catch (error) {
-    console.error('❌ Error cancelling subscription in Supabase:', error);
+    log.error('❌ Error cancelling subscription in Supabase:', error);
     throw error; // Re-throw to ensure proper error handling
   }
 }
