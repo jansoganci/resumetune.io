@@ -38,6 +38,16 @@ export function ResultsSection({
     }
   }, [matchResult]);
 
+  // Auto-expand chat 1 second after results appear (UX improvement)
+  React.useEffect(() => {
+    if (matchResult) {
+      const timer = setTimeout(() => {
+        setIsChatExpanded(true);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [matchResult]);
+
   const canChat = hasCompleteProfile;
 
   return (

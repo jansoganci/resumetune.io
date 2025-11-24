@@ -169,7 +169,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             <p className="text-xs mt-1">{t('chat.emptySubtitle')}</p>
           </div>
         ) : (
-          messages.map((message) => (
+          <>
+          {messages.map((message) => (
             <div
               key={message.id}
               className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
@@ -297,20 +298,29 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
               </div>
             </div>
           ))
-        )}
-        {isLoading && (
-          <div className="flex justify-start">
-            <div className="bg-gray-100 rounded-lg p-3">
-              <div className="flex items-center space-x-2">
-                <Bot className="w-4 h-4" />
-                <div className="flex space-x-1">
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+
+          {/* AI Typing Indicator - Enhanced for UX */}
+          {isLoading && (
+            <div className="flex justify-start animate-fadeIn">
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-lg p-3 shadow-sm">
+                <div className="flex items-center space-x-3">
+                  <Bot className="w-5 h-5 text-blue-600 animate-pulse" />
+                  <div className="flex flex-col">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm text-blue-800 font-medium">AI is thinking...</span>
+                      <div className="flex space-x-1">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
+                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }}></div>
+                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }}></div>
+                      </div>
+                    </div>
+                    <span className="text-xs text-blue-600 mt-1">Analyzing your profile and job requirements</span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
+          </>
         )}
         <div ref={messagesEndRef} />
       </div>
