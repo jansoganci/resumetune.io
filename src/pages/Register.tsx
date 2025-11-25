@@ -35,7 +35,7 @@ export default function Register() {
     try {
       await signUp(email, password)
       toast.success('Account created successfully!')
-      navigate('/')  // Go to dashboard instead of login
+      navigate('/onboarding')  // Redirect to onboarding flow
     } catch (error: any) {
       toast.error(error.message || 'Registration failed')
     } finally {

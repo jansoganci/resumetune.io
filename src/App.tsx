@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import HomePage from './pages/HomePage';
 import LandingPage from './pages/LandingPage';
+import OnboardingPage from './pages/OnboardingPage';
 import { PageLoadingSkeleton } from './components/PageLoadingSkeleton';
 
 // Lazy load non-critical pages for better performance
@@ -20,6 +21,7 @@ function App() {
       {/* Critical pages loaded immediately */}
       <Route path="/" element={<HomePage />} />
       <Route path="/landing" element={<LandingPage />} />
+      <Route path="/onboarding" element={<OnboardingPage />} />
 
       {/* Non-critical pages lazy loaded with Suspense */}
       <Route
