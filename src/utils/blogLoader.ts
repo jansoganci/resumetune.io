@@ -11,6 +11,8 @@ export interface BlogPost {
   readTime: string;
   slug: string;
   headings: BlogHeading[];
+  tags?: string[];
+  image?: string;
 }
 
 export interface BlogHeading {
@@ -27,6 +29,8 @@ interface BlogPostFrontmatter {
   category: string;
   readTime: string;
   slug: string;
+  tags?: string;
+  image?: string;
 }
 
 // Import all blog markdown files
@@ -151,6 +155,11 @@ export function getAllBlogPosts(): BlogPost[] {
       // Extract ID from filename
       const filename = path.split('/').pop()?.replace('.md', '') || '';
 
+      // Parse tags from comma-separated string
+      const tags = frontmatter.tags
+        ? frontmatter.tags.split(',').map(tag => tag.trim()).filter(Boolean)
+        : undefined;
+
       posts.push({
         id: filename,
         title: frontmatter.title,
@@ -161,7 +170,9 @@ export function getAllBlogPosts(): BlogPost[] {
         category: frontmatter.category,
         readTime: frontmatter.readTime,
         slug: frontmatter.slug,
-        headings
+        headings,
+        tags,
+        image: frontmatter.image
       });
     } catch (error) {
       // Import logger dynamically to avoid circular dependencies
@@ -182,7 +193,27 @@ export function getBlogPostBySlug(slug: string): BlogPost | undefined {
 
 export function getRelatedPosts(currentSlug: string, limit: number = 3): BlogPost[] {
   const posts = getAllBlogPosts();
-  return posts
-    .filter(post => post.slug !== currentSlug)
-    .slice(0, limit);
+  const currentPost = posts.find(post => post.slug === currentSlug);
+
+  if (!currentPost) {
+    return posts.slice(0, limit);
+  }
+
+  // First, get posts from the same category
+  const sameCategoryPosts = posts.filter(
+    post => post.slug !== currentSlug && post.category === currentPost.category
+  );
+
+  // If we have enough posts from the same category, return them
+  if (sameCategoryPosts.length >= limit) {
+    return sameCategoryPosts.slice(0, limit);
+  }
+
+  // Otherwise, fill with posts from other categories
+  const otherCategoryPosts = posts.filter(
+    post => post.slug !== currentSlug && post.category !== currentPost.category
+  );
+
+  // Combine and limit
+  return [...sameCategoryPosts, ...otherCategoryPosts].slice(0, limit);
 }

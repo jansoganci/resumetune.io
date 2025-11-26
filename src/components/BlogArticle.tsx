@@ -24,6 +24,13 @@ export default function BlogArticle({ post, relatedPosts = [] }: BlogArticleProp
     });
   }, [post.content]);
 
+  // Load bookmark status from localStorage on mount
+  useEffect(() => {
+    const bookmarkKey = `bookmark:${post.slug}`;
+    const isBookmarkedInStorage = localStorage.getItem(bookmarkKey) === 'true';
+    setIsBookmarked(isBookmarkedInStorage);
+  }, [post.slug]);
+
   // Close share menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -78,7 +85,16 @@ export default function BlogArticle({ post, relatedPosts = [] }: BlogArticleProp
   };
 
   const toggleBookmark = () => {
-    setIsBookmarked(!isBookmarked);
+    const newBookmarkState = !isBookmarked;
+    setIsBookmarked(newBookmarkState);
+
+    // Persist to localStorage
+    const bookmarkKey = `bookmark:${post.slug}`;
+    if (newBookmarkState) {
+      localStorage.setItem(bookmarkKey, 'true');
+    } else {
+      localStorage.removeItem(bookmarkKey);
+    }
   };
 
   return (
@@ -186,6 +202,20 @@ export default function BlogArticle({ post, relatedPosts = [] }: BlogArticleProp
               </div>
             </div>
 
+            {/* Tags */}
+            {post.tags && post.tags.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-6">
+                {post.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="px-3 py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition-colors"
+                  >
+                    #{tag}
+                  </span>
+                ))}
+              </div>
+            )}
+
             {/* Excerpt */}
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-400 p-6 rounded-r-xl">
               <p className="text-gray-700 text-lg leading-relaxed">
@@ -193,6 +223,18 @@ export default function BlogArticle({ post, relatedPosts = [] }: BlogArticleProp
               </p>
             </div>
           </header>
+
+          {/* Hero Image */}
+          {post.image && (
+            <div className="mb-12 rounded-xl overflow-hidden shadow-lg">
+              <img
+                src={post.image}
+                alt={post.title}
+                className="w-full h-auto max-h-96 object-cover"
+                loading="eager"
+              />
+            </div>
+          )}
 
           {/* Article Content */}
           <div

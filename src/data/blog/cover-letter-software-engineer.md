@@ -6,6 +6,8 @@ date: "2024-01-15"
 category: "Cover Letters"
 readTime: "7 min read"
 slug: "cover-letter-software-engineer"
+tags: "software engineering, cover letter, tech jobs, coding, career advice"
+image: "https://images.unsplash.com/photo-1571171637578-41bc2dd41cd2?w=1200&h=600&fit=crop"
 ---
 
 # Why a tailored Software Engineer cover letter matters
