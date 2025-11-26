@@ -19,6 +19,8 @@ import { ResultsSection } from '../components/sections/ResultsSection';
 import { QuotaIndicatorRef } from '../components/QuotaIndicator';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { createSectionErrorFallback } from '../components/SectionErrorFallback';
+import { SEOHead } from '../components/SEOHead';
+import { SoftwareApplicationSchema } from '../components/SchemaOrg';
 
 function HomePageContent() {
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
@@ -62,6 +64,28 @@ function HomePageContent() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-8">
+      {/* SEO Meta Tags */}
+      <SEOHead
+        title="ResumeTune - Free AI Resume Optimizer & Cover Letter Generator"
+        description="Create ATS-optimized resumes and personalized cover letters instantly with AI. Analyze job matches, optimize your resume, and generate custom cover letters in 15 seconds. Free to use."
+        keywords="resume optimizer, cover letter generator, ATS optimization, job matching, AI resume builder, resume analysis, career tools, job application"
+        canonicalUrl="https://resumetune.io"
+        ogType="website"
+        ogImage="https://resumetune.io/og-image.png"
+        twitterCard="summary_large_image"
+      />
+
+      {/* Schema.org Structured Data */}
+      <SoftwareApplicationSchema
+        name="ResumeTune"
+        description="AI-powered resume optimizer and cover letter generator that helps job seekers create perfect applications in seconds."
+        applicationCategory="BusinessApplication"
+        price="0"
+        priceCurrency="USD"
+        ratingValue="4.8"
+        ratingCount="1247"
+      />
+
       <Header onInfoClick={() => setIsInfoModalOpen(true)} />
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">

@@ -8,6 +8,7 @@ import { STRIPE_PLANS, APP_ROUTES, CONTACT } from '../config/constants';
 import { logger } from '../utils/logger';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import { SEOHead } from '../components/SEOHead';
 
 export default function PricingPage() {
   const { user } = useAuth();
@@ -134,6 +135,17 @@ export default function PricingPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* SEO Meta Tags */}
+      <SEOHead
+        title="Pricing Plans - ResumeTune | Affordable AI Resume & Cover Letter Tools"
+        description="Choose the perfect plan for your job search. Get AI-powered resume optimization and cover letter generation starting at just $9. Free tier available with 3 daily requests."
+        keywords="resume pricing, cover letter pricing, AI tools pricing, resume optimizer cost, job search tools, affordable resume builder"
+        canonicalUrl="https://resumetune.io/pricing"
+        ogType="website"
+        ogImage="https://resumetune.io/og-image-pricing.png"
+        twitterCard="summary_large_image"
+      />
+
       <Header />
       <div className="py-12">
       {/* Hero Section */}

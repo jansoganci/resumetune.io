@@ -5,6 +5,7 @@ import Footer from '../components/Footer';
 import BlogCard from '../components/BlogCard';
 import { getAllBlogPosts } from '../utils/blogLoader';
 import { useState, useMemo } from 'react';
+import { SEOHead } from '../components/SEOHead';
 
 export default function BlogPage(): JSX.Element {
   const allBlogPosts = getAllBlogPosts();
@@ -33,6 +34,17 @@ export default function BlogPage(): JSX.Element {
   
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* SEO Meta Tags */}
+      <SEOHead
+        title="Career Success Blog - Resume Tips & Job Search Advice | ResumeTune"
+        description="Expert career advice, resume tips, and job search strategies. Learn how to optimize your resume for ATS, write compelling cover letters, and land more interviews."
+        keywords="resume tips, cover letter advice, job search strategies, career advice, ATS optimization, interview tips, career success, job hunting"
+        canonicalUrl="https://resumetune.io/blog"
+        ogType="website"
+        ogImage="https://resumetune.io/og-image-blog.png"
+        twitterCard="summary_large_image"
+      />
+
       <Header />
       
       <main className="flex-1 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
