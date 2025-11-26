@@ -6,6 +6,14 @@ import LandingPage from './pages/LandingPage';
 import OnboardingPage from './pages/OnboardingPage';
 import { PageLoadingSkeleton } from './components/PageLoadingSkeleton';
 
+// Page-specific skeleton components
+import LoginSkeleton from './components/LoginSkeleton';
+import RegisterSkeleton from './components/RegisterSkeleton';
+import ResetPasswordSkeleton from './components/ResetPasswordSkeleton';
+import PricingPageSkeleton from './components/PricingPageSkeleton';
+import BlogPageSkeleton from './components/BlogPageSkeleton';
+import BlogArticlePageSkeleton from './components/BlogArticlePageSkeleton';
+
 // Lazy load non-critical pages for better performance
 const PricingPage = lazy(() => import('./pages/PricingPage'));
 const AccountPage = lazy(() => import('./pages/AccountPage'));
@@ -29,7 +37,7 @@ function App() {
       <Route
         path="/pricing"
         element={
-          <Suspense fallback={<PageLoadingSkeleton />}>
+          <Suspense fallback={<PricingPageSkeleton />}>
             <PricingPage />
           </Suspense>
         }
@@ -45,7 +53,7 @@ function App() {
       <Route
         path="/login"
         element={
-          <Suspense fallback={<PageLoadingSkeleton />}>
+          <Suspense fallback={<LoginSkeleton />}>
             <Login />
           </Suspense>
         }
@@ -53,7 +61,7 @@ function App() {
       <Route
         path="/register"
         element={
-          <Suspense fallback={<PageLoadingSkeleton />}>
+          <Suspense fallback={<RegisterSkeleton />}>
             <Register />
           </Suspense>
         }
@@ -61,7 +69,7 @@ function App() {
       <Route
         path="/reset-password"
         element={
-          <Suspense fallback={<PageLoadingSkeleton />}>
+          <Suspense fallback={<ResetPasswordSkeleton />}>
             <ResetPassword />
           </Suspense>
         }
@@ -69,7 +77,7 @@ function App() {
       <Route
         path="/blog"
         element={
-          <Suspense fallback={<PageLoadingSkeleton />}>
+          <Suspense fallback={<BlogPageSkeleton />}>
             <BlogPage />
           </Suspense>
         }
@@ -77,7 +85,7 @@ function App() {
       <Route
         path="/blog/:slug"
         element={
-          <Suspense fallback={<PageLoadingSkeleton />}>
+          <Suspense fallback={<BlogArticlePageSkeleton />}>
             <BlogArticlePage />
           </Suspense>
         }
