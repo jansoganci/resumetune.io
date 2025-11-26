@@ -24,16 +24,24 @@ import zhComponents from './locales/zh/components';
 import koComponents from './locales/ko/components';
 import jaComponents from './locales/ja/components';
 import arComponents from './locales/ar/components';
+import enPages from './locales/en/pages';
+import trPages from './locales/tr/pages';
+import esPages from './locales/es/pages';
+import dePages from './locales/de/pages';
+import zhPages from './locales/zh/pages';
+import koPages from './locales/ko/pages';
+import jaPages from './locales/ja/pages';
+import arPages from './locales/ar/pages';
 
 const resources = {
-  en: { common: enCommon, auth: enAuth, components: enComponents },
-  tr: { common: trCommon, auth: trAuth, components: trComponents },
-  es: { common: esCommon, auth: esAuth, components: esComponents },
-  de: { common: deCommon, auth: deAuth, components: deComponents },
-  zh: { common: zhCommon, auth: zhAuth, components: zhComponents },
-  ko: { common: koCommon, auth: koAuth, components: koComponents },
-  ja: { common: jaCommon, auth: jaAuth, components: jaComponents },
-  ar: { common: arCommon, auth: arAuth, components: arComponents }
+  en: { common: enCommon, auth: enAuth, components: enComponents, pages: enPages },
+  tr: { common: trCommon, auth: trAuth, components: trComponents, pages: trPages },
+  es: { common: esCommon, auth: esAuth, components: esComponents, pages: esPages },
+  de: { common: deCommon, auth: deAuth, components: deComponents, pages: dePages },
+  zh: { common: zhCommon, auth: zhAuth, components: zhComponents, pages: zhPages },
+  ko: { common: koCommon, auth: koAuth, components: koComponents, pages: koPages },
+  ja: { common: jaCommon, auth: jaAuth, components: jaComponents, pages: jaPages },
+  ar: { common: arCommon, auth: arAuth, components: arComponents, pages: arPages }
 };
 
 const savedLang = typeof window !== 'undefined' ? localStorage.getItem('lang') : null;
@@ -46,7 +54,7 @@ i18n
     resources,
     lng: savedLang || ((supported as readonly string[]).includes(browserLang) ? browserLang : 'en'),
     fallbackLng: 'en',
-    ns: ['common', 'auth', 'components'],
+    ns: ['common', 'auth', 'components', 'pages'],
     defaultNS: 'common',
     interpolation: { escapeValue: false }
   });

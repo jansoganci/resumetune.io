@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Check, Zap, CreditCard, Users, Star } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../components/ToastProvider';
 import { supabase } from '../config/supabase';
@@ -11,6 +12,7 @@ import Footer from '../components/Footer';
 import { SEOHead } from '../components/SEOHead';
 
 export default function PricingPage() {
+  const { t } = useTranslation(['pages']);
   const { user } = useAuth();
   const toast = useToast();
   const [loading, setLoading] = useState<string | null>(null);
@@ -44,7 +46,7 @@ export default function PricingPage() {
       if (!response.ok) {
         const error = await response.json();
         logger.error('Checkout error', { status: response.status, error });
-        toast.error('Failed to start checkout. Please try again.');
+        toast.error(t('pages:pricing.errorCheckout'));
         return;
       }
 
@@ -53,11 +55,11 @@ export default function PricingPage() {
         // Redirect to Stripe Checkout
         window.location.href = url;
       } else {
-        toast.error('Failed to create checkout session. Please try again.');
+        toast.error(t('pages:pricing.errorSession'));
       }
     } catch (error) {
       logger.error('Error handling plan selection', error as Error, { plan });
-      toast.error('An error occurred. Please try again.');
+      toast.error(t('pages:pricing.errorGeneric'));
     } finally {
       setLoading(null);
     }
@@ -69,13 +71,13 @@ export default function PricingPage() {
       id: STRIPE_PLANS.CREDITS_50.id,
       name: STRIPE_PLANS.CREDITS_50.name,
       price: STRIPE_PLANS.CREDITS_50.price,
-      description: 'Perfect for trying out our AI tools',
+      description: t('pages:pricing.freeSubtitle'),
       features: [
         `${STRIPE_PLANS.CREDITS_50.credits} AI analysis credits`,
-        'Job matching & cover letters',
-        'Resume optimization',
-        'Priority support',
-        'Credits never expire'
+        t('pages:pricing.feature1'),
+        t('pages:pricing.feature2'),
+        t('pages:pricing.feature3'),
+        t('pages:pricing.feature4')
       ],
       popular: false,
       buttonText: `Buy ${STRIPE_PLANS.CREDITS_50.credits} Credits`
@@ -84,14 +86,14 @@ export default function PricingPage() {
       id: STRIPE_PLANS.CREDITS_200.id,
       name: STRIPE_PLANS.CREDITS_200.name,
       price: STRIPE_PLANS.CREDITS_200.price,
-      description: 'Best value for active job seekers',
+      description: t('pages:pricing.starterSubtitle'),
       features: [
         `${STRIPE_PLANS.CREDITS_200.credits} AI analysis credits`,
-        'Job matching & cover letters',
-        'Resume optimization',
-        'Priority support',
-        'Credits never expire',
-        'Great value per credit'
+        t('pages:pricing.feature1'),
+        t('pages:pricing.feature2'),
+        t('pages:pricing.feature3'),
+        t('pages:pricing.feature4'),
+        t('pages:pricing.feature5')
       ],
       popular: true,
       buttonText: `Buy ${STRIPE_PLANS.CREDITS_200.credits} Credits`
@@ -100,36 +102,36 @@ export default function PricingPage() {
       id: STRIPE_PLANS.SUB_100.id,
       name: STRIPE_PLANS.SUB_100.name,
       price: STRIPE_PLANS.SUB_100.price,
-      period: '/month',
+      period: t('pages:pricing.perMonth'),
       description: `${STRIPE_PLANS.SUB_100.creditsPerMonth} credits monthly for consistent users`,
       features: [
         `${STRIPE_PLANS.SUB_100.creditsPerMonth} credits every month`,
-        'Job matching & cover letters',
-        'Resume optimization',
-        'Priority support',
+        t('pages:pricing.feature1'),
+        t('pages:pricing.feature2'),
+        t('pages:pricing.feature3'),
         'Advanced features',
         'Cancel anytime'
       ],
       popular: false,
-      buttonText: 'Subscribe Monthly'
+      buttonText: t('pages:pricing.subscribeMonthly')
     },
     {
       id: STRIPE_PLANS.SUB_300.id,
       name: STRIPE_PLANS.SUB_300.name,
       price: STRIPE_PLANS.SUB_300.price,
-      period: '/year',
-      description: 'Best value for career professionals',
+      period: t('pages:pricing.perYear'),
+      description: t('pages:pricing.proSubtitle'),
       features: [
         `${STRIPE_PLANS.SUB_300.creditsPerMonth} credits every month`,
-        'Job matching & cover letters',
-        'Resume optimization',
-        'Priority support',
+        t('pages:pricing.feature1'),
+        t('pages:pricing.feature2'),
+        t('pages:pricing.feature3'),
         'Advanced features',
-        'Save $19 vs monthly',
-        'Career coaching sessions'
+        t('pages:pricing.saveMoney'),
+        t('pages:pricing.feature6')
       ],
       popular: false,
-      buttonText: 'Subscribe Yearly'
+      buttonText: t('pages:pricing.subscribeYearly')
     }
   ];
 
@@ -151,10 +153,10 @@ export default function PricingPage() {
       {/* Hero Section */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center mb-12">
         <h1 className="text-4xl font-bold text-gray-900 mb-4">
-          Choose Your Plan
+          {t('pages:pricing.title')}
         </h1>
         <p className="text-xl text-gray-600 max-w-4xl mx-auto">
-          Unlock the full power of AI-driven career tools. Get more interviews, better matches, and land your dream job faster.
+          {t('pages:pricing.subtitle')}
         </p>
       </div>
 
@@ -175,7 +177,7 @@ export default function PricingPage() {
               {plan.popular && (
                 <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
                   <span className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-medium">
-                    Most Popular
+                    {t('pages:pricing.mostPopular')}
                   </span>
                 </div>
               )}
@@ -228,10 +230,10 @@ export default function PricingPage() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mt-16">
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold text-gray-900 mb-4">
-            Why Choose CareerBoost AI?
+            {t('pages:pricing.whyChooseTitle')}
           </h2>
           <p className="text-gray-600 max-w-2xl mx-auto">
-            Join thousands of professionals who have accelerated their careers with our AI-powered tools.
+            {t('pages:pricing.whyChooseSubtitle')}
           </p>
         </div>
 
@@ -240,9 +242,9 @@ export default function PricingPage() {
             <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-4">
               <Zap className="w-6 h-6 text-blue-600" />
             </div>
-            <h3 className="font-semibold text-gray-900 mb-2">AI-Powered Matching</h3>
+            <h3 className="font-semibold text-gray-900 mb-2">{t('pages:pricing.aiPoweredTitle')}</h3>
             <p className="text-gray-600 text-sm">
-              Our advanced AI analyzes job descriptions and matches them perfectly with your profile.
+              {t('pages:pricing.aiPoweredDesc')}
             </p>
           </div>
 
@@ -250,9 +252,9 @@ export default function PricingPage() {
             <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-4">
               <Users className="w-6 h-6 text-green-600" />
             </div>
-            <h3 className="font-semibold text-gray-900 mb-2">Expert Cover Letters</h3>
+            <h3 className="font-semibold text-gray-900 mb-2">{t('pages:pricing.expertLettersTitle')}</h3>
             <p className="text-gray-600 text-sm">
-              Generate personalized, compelling cover letters that get you noticed by hiring managers.
+              {t('pages:pricing.expertLettersDesc')}
             </p>
           </div>
 
@@ -260,9 +262,9 @@ export default function PricingPage() {
             <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-4">
               <Star className="w-6 h-6 text-purple-600" />
             </div>
-            <h3 className="font-semibold text-gray-900 mb-2">Resume Optimization</h3>
+            <h3 className="font-semibold text-gray-900 mb-2">{t('pages:pricing.resumeOptTitle')}</h3>
             <p className="text-gray-600 text-sm">
-              Optimize your resume for ATS systems and human recruiters to maximize your interview chances.
+              {t('pages:pricing.resumeOptDesc')}
             </p>
           </div>
         </div>
@@ -271,23 +273,23 @@ export default function PricingPage() {
       {/* Footer */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mt-16 text-center">
         <div className="bg-white rounded-lg p-6 shadow-sm border">
-          <h3 className="font-semibold text-gray-900 mb-2">Need help choosing?</h3>
+          <h3 className="font-semibold text-gray-900 mb-2">{t('pages:pricing.needHelp')}</h3>
           <p className="text-gray-600 text-sm mb-4">
-            Contact our support team or start with the free tier to try our tools.
+            {t('pages:pricing.needHelpDesc')}
           </p>
           <div className="flex justify-center space-x-4">
             <a
               href={APP_ROUTES.GUIDES}
               className="text-blue-600 hover:text-blue-700 text-sm font-medium"
             >
-              View Guides
+              {t('pages:pricing.viewGuides')}
             </a>
             <span className="text-gray-300">•</span>
             <a
               href={`mailto:${CONTACT.SUPPORT_EMAIL}`}
               className="text-blue-600 hover:text-blue-700 text-sm font-medium"
             >
-              Contact Support
+              {t('pages:pricing.contactSupport')}
             </a>
           </div>
         </div>
