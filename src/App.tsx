@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
+import { HelmetProvider } from 'react-helmet-async';
 import HomePage from './pages/HomePage';
 import LandingPage from './pages/LandingPage';
 import OnboardingPage from './pages/OnboardingPage';
@@ -17,11 +18,12 @@ const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
 function App() {
   return (
-    <Routes>
-      {/* Critical pages loaded immediately */}
-      <Route path="/" element={<HomePage />} />
-      <Route path="/landing" element={<LandingPage />} />
-      <Route path="/onboarding" element={<OnboardingPage />} />
+    <HelmetProvider>
+      <Routes>
+        {/* Critical pages loaded immediately */}
+        <Route path="/" element={<HomePage />} />
+        <Route path="/landing" element={<LandingPage />} />
+        <Route path="/onboarding" element={<OnboardingPage />} />
 
       {/* Non-critical pages lazy loaded with Suspense */}
       <Route
@@ -88,7 +90,8 @@ function App() {
           </Suspense>
         }
       />
-    </Routes>
+      </Routes>
+    </HelmetProvider>
   );
 }
 
