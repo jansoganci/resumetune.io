@@ -16,16 +16,24 @@ import zhAuth from './locales/zh/auth';
 import koAuth from './locales/ko/auth';
 import jaAuth from './locales/ja/auth';
 import arAuth from './locales/ar/auth';
+import enComponents from './locales/en/components';
+import trComponents from './locales/tr/components';
+import esComponents from './locales/es/components';
+import deComponents from './locales/de/components';
+import zhComponents from './locales/zh/components';
+import koComponents from './locales/ko/components';
+import jaComponents from './locales/ja/components';
+import arComponents from './locales/ar/components';
 
 const resources = {
-  en: { common: enCommon, auth: enAuth },
-  tr: { common: trCommon, auth: trAuth },
-  es: { common: esCommon, auth: esAuth },
-  de: { common: deCommon, auth: deAuth },
-  zh: { common: zhCommon, auth: zhAuth },
-  ko: { common: koCommon, auth: koAuth },
-  ja: { common: jaCommon, auth: jaAuth },
-  ar: { common: arCommon, auth: arAuth }
+  en: { common: enCommon, auth: enAuth, components: enComponents },
+  tr: { common: trCommon, auth: trAuth, components: trComponents },
+  es: { common: esCommon, auth: esAuth, components: esComponents },
+  de: { common: deCommon, auth: deAuth, components: deComponents },
+  zh: { common: zhCommon, auth: zhAuth, components: zhComponents },
+  ko: { common: koCommon, auth: koAuth, components: koComponents },
+  ja: { common: jaCommon, auth: jaAuth, components: jaComponents },
+  ar: { common: arCommon, auth: arAuth, components: arComponents }
 };
 
 const savedLang = typeof window !== 'undefined' ? localStorage.getItem('lang') : null;
@@ -38,7 +46,7 @@ i18n
     resources,
     lng: savedLang || ((supported as readonly string[]).includes(browserLang) ? browserLang : 'en'),
     fallbackLng: 'en',
-    ns: ['common', 'auth'],
+    ns: ['common', 'auth', 'components'],
     defaultNS: 'common',
     interpolation: { escapeValue: false }
   });

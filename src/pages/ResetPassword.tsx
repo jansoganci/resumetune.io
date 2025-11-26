@@ -3,12 +3,14 @@ import { Link } from 'react-router-dom'
 import { Zap, Mail, ArrowLeft } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../components/ToastProvider'
+import { useTranslation } from 'react-i18next'
 
 export default function ResetPassword() {
+  const { t } = useTranslation(['auth'])
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
-  
+
   const { resetPassword } = useAuth()
   const toast = useToast()
 
@@ -19,9 +21,9 @@ export default function ResetPassword() {
     try {
       await resetPassword(email)
       setSent(true)
-      toast.success('Password reset email sent! Check your inbox.')
+      toast.success(t('auth:resetPassword.resetEmailSent'))
     } catch (error: any) {
-      toast.error(error.message || 'Failed to send reset email')
+      toast.error(error.message || t('auth:resetPassword.resetFailed'))
     } finally {
       setLoading(false)
     }
@@ -37,10 +39,10 @@ export default function ResetPassword() {
             </div>
           </div>
           <h2 className="mt-6 text-center text-3xl font-bold text-gray-900">
-            Check your email
+            {t('auth:resetPassword.checkEmailTitle')}
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            We've sent a password reset link to{' '}
+            {t('auth:resetPassword.checkEmailMessage')}{' '}
             <span className="font-medium">{email}</span>
           </p>
         </div>
@@ -49,16 +51,15 @@ export default function ResetPassword() {
           <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
             <div className="text-center space-y-4">
               <p className="text-sm text-gray-600">
-                Click the link in the email to reset your password. 
-                The link will expire in 24 hours.
+                {t('auth:resetPassword.checkEmailInstructions')}
               </p>
-              
+
               <div className="pt-4">
                 <button
                   onClick={() => setSent(false)}
                   className="text-sm text-blue-600 hover:text-blue-500"
                 >
-                  Didn't receive the email? Try again
+                  {t('auth:resetPassword.didntReceive')}
                 </button>
               </div>
 
@@ -68,7 +69,7 @@ export default function ResetPassword() {
                   className="inline-flex items-center text-sm text-gray-600 hover:text-gray-500"
                 >
                   <ArrowLeft className="w-4 h-4 mr-1" />
-                  Back to sign in
+                  {t('auth:resetPassword.backToSignIn')}
                 </Link>
               </div>
             </div>
@@ -87,10 +88,10 @@ export default function ResetPassword() {
           </div>
         </div>
         <h2 className="mt-6 text-center text-3xl font-bold text-gray-900">
-          Reset your password
+          {t('auth:resetPassword.resetTitle')}
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
-          Enter your email address and we'll send you a link to reset your password
+          {t('auth:resetPassword.resetInstructions')}
         </p>
       </div>
 
@@ -99,7 +100,7 @@ export default function ResetPassword() {
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email address
+                {t('auth:resetPassword.email')}
               </label>
               <div className="mt-1 relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -114,7 +115,7 @@ export default function ResetPassword() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="appearance-none block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  placeholder="Enter your email"
+                  placeholder={t('auth:resetPassword.emailPlaceholder')}
                 />
               </div>
             </div>
@@ -129,7 +130,7 @@ export default function ResetPassword() {
                 {loading ? (
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 ) : (
-                  'Send reset link'
+                  t('auth:resetPassword.sendResetLink')
                 )}
               </button>
             </div>
@@ -142,7 +143,7 @@ export default function ResetPassword() {
                 className="inline-flex items-center text-sm text-gray-600 hover:text-gray-500"
               >
                 <ArrowLeft className="w-4 h-4 mr-1" />
-                Back to sign in
+                {t('auth:resetPassword.backToSignIn')}
               </Link>
             </div>
           </div>
