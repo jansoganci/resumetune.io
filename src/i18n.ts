@@ -8,16 +8,24 @@ import zhCommon from './locales/zh/common';
 import koCommon from './locales/ko/common';
 import jaCommon from './locales/ja/common';
 import arCommon from './locales/ar/common';
+import enAuth from './locales/en/auth';
+import trAuth from './locales/tr/auth';
+import esAuth from './locales/es/auth';
+import deAuth from './locales/de/auth';
+import zhAuth from './locales/zh/auth';
+import koAuth from './locales/ko/auth';
+import jaAuth from './locales/ja/auth';
+import arAuth from './locales/ar/auth';
 
 const resources = {
-  en: { common: enCommon },
-  tr: { common: trCommon },
-  es: { common: esCommon },
-  de: { common: deCommon },
-  zh: { common: zhCommon },
-  ko: { common: koCommon },
-  ja: { common: jaCommon },
-  ar: { common: arCommon }
+  en: { common: enCommon, auth: enAuth },
+  tr: { common: trCommon, auth: trAuth },
+  es: { common: esCommon, auth: esAuth },
+  de: { common: deCommon, auth: deAuth },
+  zh: { common: zhCommon, auth: zhAuth },
+  ko: { common: koCommon, auth: koAuth },
+  ja: { common: jaCommon, auth: jaAuth },
+  ar: { common: arCommon, auth: arAuth }
 };
 
 const savedLang = typeof window !== 'undefined' ? localStorage.getItem('lang') : null;
@@ -30,7 +38,7 @@ i18n
     resources,
     lng: savedLang || ((supported as readonly string[]).includes(browserLang) ? browserLang : 'en'),
     fallbackLng: 'en',
-    ns: ['common'],
+    ns: ['common', 'auth'],
     defaultNS: 'common',
     interpolation: { escapeValue: false }
   });

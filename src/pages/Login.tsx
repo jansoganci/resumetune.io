@@ -3,14 +3,16 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Zap, Mail, Lock, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../components/ToastProvider'
+import { useTranslation } from 'react-i18next'
 
 export default function Login() {
+  const { t } = useTranslation(['auth'])
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [magicLinkMode, setMagicLinkMode] = useState(false)
-  
+
   const { signIn, signInWithOtp } = useAuth()
   const toast = useToast()
   const navigate = useNavigate()
@@ -22,14 +24,14 @@ export default function Login() {
     try {
       if (magicLinkMode) {
         await signInWithOtp(email)
-        toast.success('Check your email for the magic link!')
+        toast.success(t('auth:login.magicLinkSent'))
       } else {
         await signIn(email, password)
-        toast.success('Logged in successfully!')
+        toast.success(t('auth:login.loginSuccess'))
         navigate('/')
       }
     } catch (error: any) {
-      toast.error(error.message || 'Login failed')
+      toast.error(error.message || t('auth:login.loginFailed'))
     } finally {
       setLoading(false)
     }
@@ -44,15 +46,15 @@ export default function Login() {
           </div>
         </div>
         <h2 className="mt-6 text-center text-3xl font-bold text-gray-900">
-          Sign in to your account
+          {t('auth:login.title')}
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
-          Or{' '}
+          {t('auth:login.orText')}{' '}
           <Link
             to="/register"
             className="font-medium text-blue-600 hover:text-blue-500"
           >
-            create a new account
+            {t('auth:login.createAccount')}
           </Link>
         </p>
       </div>
@@ -62,7 +64,7 @@ export default function Login() {
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email address
+                {t('auth:login.email')}
               </label>
               <div className="mt-1 relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -77,7 +79,7 @@ export default function Login() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="appearance-none block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  placeholder="Enter your email"
+                  placeholder={t('auth:login.emailPlaceholder')}
                 />
               </div>
             </div>
@@ -85,7 +87,7 @@ export default function Login() {
             {!magicLinkMode && (
               <div>
                 <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                  Password
+                  {t('auth:login.password')}
                 </label>
                 <div className="mt-1 relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -100,7 +102,7 @@ export default function Login() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="appearance-none block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    placeholder="Enter your password"
+                    placeholder={t('auth:login.passwordPlaceholder')}
                   />
                   <button
                     type="button"
@@ -123,7 +125,7 @@ export default function Login() {
                 onClick={() => setMagicLinkMode(!magicLinkMode)}
                 className="text-sm text-blue-600 hover:text-blue-500"
               >
-                {magicLinkMode ? 'Use password instead' : 'Use magic link'}
+                {magicLinkMode ? t('auth:login.usePasswordInstead') : t('auth:login.useMagicLink')}
               </button>
 
               {!magicLinkMode && (
@@ -131,7 +133,7 @@ export default function Login() {
                   to="/reset-password"
                   className="text-sm text-blue-600 hover:text-blue-500"
                 >
-                  Forgot password?
+                  {t('auth:login.forgotPassword')}
                 </Link>
               )}
             </div>
@@ -146,9 +148,9 @@ export default function Login() {
                 {loading ? (
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 ) : magicLinkMode ? (
-                  'Send magic link'
+                  t('auth:login.sendMagicLink')
                 ) : (
-                  'Sign in'
+                  t('auth:login.signIn')
                 )}
               </button>
             </div>
@@ -160,7 +162,7 @@ export default function Login() {
                 to="/"
                 className="text-sm text-gray-600 hover:text-gray-500"
               >
-                ← Back to home
+                {t('auth:login.backToHome')}
               </Link>
             </div>
           </div>
