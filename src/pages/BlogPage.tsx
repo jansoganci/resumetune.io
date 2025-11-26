@@ -27,10 +27,14 @@ export default function BlogPage(): JSX.Element {
       return matchesSearch && matchesCategory;
     });
   }, [allBlogPosts, searchTerm, selectedCategory]);
-  
-  // Get featured post (most recent)
+
+  // Get featured post (most recent) and regular posts
   const featuredPost = allBlogPosts[0];
-  const regularPosts = filteredPosts.slice(1);
+  const isFiltering = searchTerm !== '' || selectedCategory !== 'All';
+
+  // When filtering/searching, show all filtered results
+  // When not filtering, exclude the featured post from regular posts
+  const regularPosts = isFiltering ? filteredPosts : filteredPosts.slice(1);
   
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">

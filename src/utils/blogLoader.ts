@@ -1,3 +1,5 @@
+import { marked } from 'marked';
+
 export interface BlogPost {
   id: string;
   title: string;
@@ -8,6 +10,13 @@ export interface BlogPost {
   category: string;
   readTime: string;
   slug: string;
+  headings: BlogHeading[];
+}
+
+export interface BlogHeading {
+  id: string;
+  text: string;
+  level: number;
 }
 
 interface BlogPostFrontmatter {
@@ -21,9 +30,9 @@ interface BlogPostFrontmatter {
 }
 
 // Import all blog markdown files
-const blogModules = import.meta.glob('../data/blog/*.md', { 
+const blogModules = import.meta.glob('../data/blog/*.md', {
   as: 'raw',
-  eager: true 
+  eager: true
 });
 
 function parseMarkdownWithFrontmatter(markdownContent: string): { frontmatter: BlogPostFrontmatter; content: string } {
@@ -63,54 +72,85 @@ function parseMarkdownWithFrontmatter(markdownContent: string): { frontmatter: B
   };
 }
 
+// Generate slug from heading text
+function generateSlug(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/--+/g, '-')
+    .trim();
+}
+
+// Extract headings from markdown for Table of Contents
+function extractHeadings(markdown: string): BlogHeading[] {
+  const headings: BlogHeading[] = [];
+  const headingRegex = /^(#{2,3})\s+(.+)$/gm;
+  let match;
+
+  while ((match = headingRegex.exec(markdown)) !== null) {
+    const level = match[1].length;
+    const text = match[2].trim();
+    const id = generateSlug(text);
+
+    // Only include H2 and H3 for TOC
+    if (level === 2 || level === 3) {
+      headings.push({ id, text, level });
+    }
+  }
+
+  return headings;
+}
+
+// Convert markdown to HTML with heading IDs
 function convertMarkdownToHtml(markdown: string): string {
-  // Simple markdown to HTML converter
-  // For production, you might want to use a proper markdown parser like marked or remark
-  
-  let html = markdown
-    // Headers
-    .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-    .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-    .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-    
-    // Bold
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    
-    // Code blocks
-    .replace(/```([\s\S]*?)```/g, '<div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; white-space: pre-wrap; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, Helvetica, Arial;">$1</div>')
-    
-    // Lists
-    .replace(/^\* (.*$)/gim, '<li>$1</li>')
-    .replace(/^- (.*$)/gim, '<li>$1</li>')
-    .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
-    
-    // Numbered lists
-    .replace(/^\d+\. (.*$)/gim, '<li>$1</li>')
-    .replace(/(<li>.*<\/li>)/s, '<ol>$1</ol>')
-    
-    // Paragraphs
-    .replace(/\n\n/g, '</p><p>')
-    .replace(/^(?!<[h|u|o|l|d])/gm, '<p>')
-    .replace(/(?<!>)$/gm, '</p>')
-    
-    // Clean up empty paragraphs
-    .replace(/<p><\/p>/g, '')
-    .replace(/<p>\s*<\/p>/g, '');
-  
-  return html;
+  // Configure marked options
+  marked.setOptions({
+    gfm: true, // GitHub Flavored Markdown
+    breaks: true, // Line breaks become <br>
+  });
+
+  // Custom renderer to add IDs to headings
+  const renderer = new marked.Renderer();
+  const originalHeading = renderer.heading.bind(renderer);
+
+  renderer.heading = ({ text, depth }) => {
+    const id = generateSlug(text);
+    return `<h${depth} id="${id}">${text}</h${depth}>`;
+  };
+
+  // Custom code block styling
+  renderer.code = ({ text, lang }) => {
+    return `<pre class="bg-gray-50 border border-gray-200 rounded-lg p-4 overflow-x-auto"><code class="language-${lang || 'text'}">${text}</code></pre>`;
+  };
+
+  // Custom blockquote styling
+  renderer.blockquote = ({ text }) => {
+    return `<blockquote class="border-l-4 border-blue-400 bg-blue-50 pl-4 py-2 my-4 italic text-gray-700">${text}</blockquote>`;
+  };
+
+  marked.use({ renderer });
+
+  try {
+    return marked.parse(markdown) as string;
+  } catch (error) {
+    console.error('Error parsing markdown:', error);
+    return '<p>Error parsing content</p>';
+  }
 }
 
 export function getAllBlogPosts(): BlogPost[] {
   const posts: BlogPost[] = [];
-  
+
   for (const [path, content] of Object.entries(blogModules)) {
     try {
       const { frontmatter, content: markdownContent } = parseMarkdownWithFrontmatter(content as string);
+      const headings = extractHeadings(markdownContent);
       const htmlContent = convertMarkdownToHtml(markdownContent);
-      
+
       // Extract ID from filename
       const filename = path.split('/').pop()?.replace('.md', '') || '';
-      
+
       posts.push({
         id: filename,
         title: frontmatter.title,
@@ -120,7 +160,8 @@ export function getAllBlogPosts(): BlogPost[] {
         date: frontmatter.date,
         category: frontmatter.category,
         readTime: frontmatter.readTime,
-        slug: frontmatter.slug
+        slug: frontmatter.slug,
+        headings
       });
     } catch (error) {
       // Import logger dynamically to avoid circular dependencies
@@ -129,7 +170,7 @@ export function getAllBlogPosts(): BlogPost[] {
       }).catch(() => {});
     }
   }
-  
+
   // Sort by date (newest first)
   return posts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }

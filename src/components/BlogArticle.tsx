@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Calendar, Clock, User, Share2, Bookmark, BookOpen, Twitter, Facebook, Linkedin, Copy, Check } from 'lucide-react';
 import { BlogPost } from '../utils/blogLoader';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { SOCIAL_SHARE_URLS } from '../config/constants';
+import DOMPurify from 'dompurify';
 
 interface BlogArticleProps {
   post: BlogPost;
@@ -14,6 +15,14 @@ export default function BlogArticle({ post, relatedPosts = [] }: BlogArticleProp
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [copied, setCopied] = useState(false);
   const shareMenuRef = useRef<HTMLDivElement>(null);
+
+  // Sanitize HTML content with DOMPurify
+  const sanitizedContent = useMemo(() => {
+    return DOMPurify.sanitize(post.content, {
+      ADD_ATTR: ['target', 'rel'], // Allow target and rel attributes for links
+      ADD_TAGS: ['iframe'], // Allow iframes for embeds
+    });
+  }, [post.content]);
 
   // Close share menu when clicking outside
   useEffect(() => {
@@ -186,9 +195,9 @@ export default function BlogArticle({ post, relatedPosts = [] }: BlogArticleProp
           </header>
 
           {/* Article Content */}
-          <div 
+          <div
             className="prose prose-lg max-w-none mb-12 bg-white rounded-xl shadow-sm border border-gray-200 p-8 md:p-12"
-            dangerouslySetInnerHTML={{ __html: post.content }}
+            dangerouslySetInnerHTML={{ __html: sanitizedContent }}
             style={{
               color: '#374151',
               lineHeight: '1.8',
@@ -200,30 +209,37 @@ export default function BlogArticle({ post, relatedPosts = [] }: BlogArticleProp
         {/* Sidebar */}
         <aside className="lg:col-span-1 mt-8 lg:mt-0">
           <div className="sticky top-8 space-y-6">
-            {/* Table of Contents */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <BookOpen className="w-5 h-5 text-blue-600 mr-2" />
-                Quick Navigation
-              </h3>
-              <div className="space-y-2 text-sm">
-                <a href="#why-matters" className="block text-gray-600 hover:text-blue-600 transition-colors py-1">
-                  Why This Matters
-                </a>
-                <a href="#tips" className="block text-gray-600 hover:text-blue-600 transition-colors py-1">
-                  Key Tips
-                </a>
-                <a href="#sample" className="block text-gray-600 hover:text-blue-600 transition-colors py-1">
-                  Sample Letter
-                </a>
-                <a href="#step-by-step" className="block text-gray-600 hover:text-blue-600 transition-colors py-1">
-                  Step-by-Step Guide
-                </a>
-                <a href="#faq" className="block text-gray-600 hover:text-blue-600 transition-colors py-1">
-                  FAQs
-                </a>
+            {/* Table of Contents - Dynamic */}
+            {post.headings.length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <BookOpen className="w-5 h-5 text-blue-600 mr-2" />
+                  Quick Navigation
+                </h3>
+                <nav className="space-y-2 text-sm">
+                  {post.headings.map((heading) => (
+                    <a
+                      key={heading.id}
+                      href={`#${heading.id}`}
+                      className={`block text-gray-600 hover:text-blue-600 transition-colors py-1 ${
+                        heading.level === 3 ? 'pl-4' : ''
+                      }`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        const element = document.getElementById(heading.id);
+                        if (element) {
+                          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                          // Update URL without triggering navigation
+                          window.history.pushState(null, '', `#${heading.id}`);
+                        }
+                      }}
+                    >
+                      {heading.text}
+                    </a>
+                  ))}
+                </nav>
               </div>
-            </div>
+            )}
 
             {/* Reading Stats */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
