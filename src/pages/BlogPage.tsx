@@ -6,8 +6,10 @@ import BlogCard from '../components/BlogCard';
 import { getAllBlogPosts } from '../utils/blogLoader';
 import { useState, useMemo } from 'react';
 import { SEOHead } from '../components/SEOHead';
+import { useTranslation } from 'react-i18next';
 
 export default function BlogPage(): JSX.Element {
+  const { t } = useTranslation(['pages']);
   const allBlogPosts = getAllBlogPosts();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -90,8 +92,8 @@ export default function BlogPage(): JSX.Element {
                 <BookOpen className="w-8 h-8 text-white" />
               </div>
               <div>
-                <h1 className="text-3xl md:text-4xl font-bold text-gray-900">Career Success Hub</h1>
-                <p className="text-lg text-gray-600">Expert insights to accelerate your job search</p>
+                <h1 className="text-3xl md:text-4xl font-bold text-gray-900">{t('pages:blog.title')}</h1>
+                <p className="text-lg text-gray-600">{t('pages:blog.subtitle')}</p>
               </div>
             </div>
             
@@ -99,15 +101,15 @@ export default function BlogPage(): JSX.Element {
             <div className="flex items-center justify-center space-x-8 mb-8 text-sm text-gray-600">
               <div className="flex items-center space-x-2">
                 <Users className="w-4 h-4 text-blue-600" />
-                <span>10,000+ readers</span>
+                <span>{t('pages:blog.readersCount')}</span>
               </div>
               <div className="flex items-center space-x-2">
                 <Star className="w-4 h-4 text-yellow-500" />
-                <span>4.8/5 rating</span>
+                <span>{t('pages:blog.rating')}</span>
               </div>
               <div className="flex items-center space-x-2">
                 <TrendingUp className="w-4 h-4 text-green-500" />
-                <span>95% success rate</span>
+                <span>{t('pages:blog.successRate')}</span>
               </div>
             </div>
             
@@ -117,7 +119,7 @@ export default function BlogPage(): JSX.Element {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Search articles..."
+                  placeholder={t('pages:blog.searchPlaceholder')}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-base"
@@ -147,7 +149,7 @@ export default function BlogPage(): JSX.Element {
                 <div className="border-t border-gray-200 pt-4">
                   <div className="flex items-center justify-center gap-2 mb-3">
                     <Tag className="w-4 h-4 text-gray-500" />
-                    <span className="text-sm font-medium text-gray-600">Filter by tags:</span>
+                    <span className="text-sm font-medium text-gray-600">{t('pages:blog.filterByTags')}</span>
                   </div>
                   <div className="flex flex-wrap items-center justify-center gap-2 max-w-3xl mx-auto">
                     {allTags.map((tag) => (
@@ -170,10 +172,10 @@ export default function BlogPage(): JSX.Element {
               {/* Active Filters Display */}
               {isFiltering && (
                 <div className="flex flex-wrap items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-200">
-                  <span className="text-sm text-gray-600">Active filters:</span>
+                  <span className="text-sm text-gray-600">{t('pages:blog.activeFilters')}</span>
                   {searchTerm && (
                     <span className="inline-flex items-center px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs">
-                      Search: "{searchTerm}"
+                      {t('pages:blog.searchLabel')} "{searchTerm}"
                     </span>
                   )}
                   {selectedCategory !== 'All' && (
@@ -194,7 +196,7 @@ export default function BlogPage(): JSX.Element {
                     className="inline-flex items-center space-x-1 px-3 py-1 bg-red-100 text-red-700 hover:bg-red-200 rounded-full text-xs font-medium transition-colors"
                   >
                     <X className="w-3 h-3" />
-                    <span>Clear all</span>
+                    <span>{t('pages:blog.clearAll')}</span>
                   </button>
                 </div>
               )}
@@ -204,10 +206,10 @@ export default function BlogPage(): JSX.Element {
           {/* Breadcrumb */}
           <nav className="flex items-center space-x-2 text-sm text-gray-500 mt-6">
             <Link to="/" className="hover:text-gray-700 transition-colors">
-              Home
+              {t('pages:blog.home')}
             </Link>
             <span>/</span>
-            <span className="text-gray-900">Blog</span>
+            <span className="text-gray-900">{t('pages:blog.blogLabel')}</span>
           </nav>
         </div>
 
@@ -217,7 +219,7 @@ export default function BlogPage(): JSX.Element {
             <div className="flex items-center mb-6">
               <div className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full shadow-lg">
                 <TrendingUp className="w-4 h-4" />
-                <span className="text-sm font-semibold">Featured Article</span>
+                <span className="text-sm font-semibold">{t('pages:blog.featuredArticle')}</span>
               </div>
             </div>
 
@@ -248,7 +250,7 @@ export default function BlogPage(): JSX.Element {
                 <div className="p-8 lg:p-12 flex flex-col justify-center">
                   <div className="mb-4">
                     <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-600 text-white shadow-sm">
-                      Latest Post
+                      {t('pages:blog.latestPost')}
                     </span>
                   </div>
 
@@ -292,7 +294,7 @@ export default function BlogPage(): JSX.Element {
                   )}
 
                   <div className="flex items-center space-x-3 text-blue-600 font-semibold group-hover:text-blue-700">
-                    <span>Read Full Article</span>
+                    <span>{t('pages:blog.readFullArticle')}</span>
                     <span className="group-hover:translate-x-1 transition-transform">→</span>
                   </div>
                 </div>
@@ -305,7 +307,7 @@ export default function BlogPage(): JSX.Element {
         <div className="space-y-6">
           <h2 className="text-xl font-semibold text-gray-900 flex items-center">
             <BookOpen className="w-5 h-5 text-blue-600 mr-2" />
-            All Articles ({filteredPosts.length})
+            {t('pages:blog.allArticles', { count: filteredPosts.length })}
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {regularPosts.map((post) => (
@@ -324,23 +326,23 @@ export default function BlogPage(): JSX.Element {
 
                   {/* Message */}
                   <h3 className="text-xl font-semibold text-gray-900 mb-3">
-                    No articles found
+                    {t('pages:blog.noArticlesTitle')}
                   </h3>
                   <p className="text-gray-600 mb-6">
                     {searchTerm && selectedTags.length === 0 && selectedCategory === 'All' && (
-                      <>We couldn't find any articles matching "<strong>{searchTerm}</strong>". Try different keywords or browse by category.</>
+                      t('pages:blog.noArticlesSearch', { term: searchTerm })
                     )}
                     {selectedTags.length > 0 && !searchTerm && selectedCategory === 'All' && (
-                      <>No articles found with the selected tag{selectedTags.length > 1 ? 's' : ''}. Try selecting different tags or browse all articles.</>
+                      t('pages:blog.noArticlesTags', { plural: selectedTags.length > 1 ? 's' : '' })
                     )}
                     {selectedCategory !== 'All' && selectedTags.length === 0 && !searchTerm && (
-                      <>No articles found in the "<strong>{selectedCategory}</strong>" category yet. Check back soon or explore other categories.</>
+                      t('pages:blog.noArticlesCategory', { category: selectedCategory })
                     )}
                     {(searchTerm || selectedTags.length > 0) && selectedCategory !== 'All' && (
-                      <>Your filter combination didn't match any articles. Try adjusting your filters or browse all articles.</>
+                      t('pages:blog.noArticlesFiltered')
                     )}
                     {!searchTerm && selectedTags.length === 0 && selectedCategory === 'All' && (
-                      <>We don't have any articles yet. Check back soon for career tips and resume advice!</>
+                      t('pages:blog.noArticlesEmpty')
                     )}
                   </p>
 
@@ -353,14 +355,14 @@ export default function BlogPage(): JSX.Element {
                         className="inline-flex items-center space-x-2 px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-md"
                       >
                         <X className="w-4 h-4" />
-                        <span>Clear All Filters</span>
+                        <span>{t('pages:blog.clearAllFilters')}</span>
                       </button>
                     )}
 
                     {/* Popular Categories */}
                     {categories.length > 1 && (
                       <div className="pt-6 border-t border-gray-200">
-                        <p className="text-sm text-gray-600 mb-3">Browse by category:</p>
+                        <p className="text-sm text-gray-600 mb-3">{t('pages:blog.browseByCategory')}</p>
                         <div className="flex flex-wrap items-center justify-center gap-2">
                           {categories.filter(cat => cat !== 'All' && cat !== selectedCategory).slice(0, 4).map((category) => (
                             <button
@@ -382,7 +384,7 @@ export default function BlogPage(): JSX.Element {
                     {/* Popular Tags */}
                     {allTags.length > 0 && (
                       <div className="pt-6 border-t border-gray-200">
-                        <p className="text-sm text-gray-600 mb-3">Or try these popular topics:</p>
+                        <p className="text-sm text-gray-600 mb-3">{t('pages:blog.popularTopics')}</p>
                         <div className="flex flex-wrap items-center justify-center gap-2">
                           {allTags.filter(tag => !selectedTags.includes(tag)).slice(0, 6).map((tag) => (
                             <button
@@ -406,7 +408,7 @@ export default function BlogPage(): JSX.Element {
                         to="/"
                         className="inline-flex items-center space-x-2 text-blue-600 hover:text-blue-700 font-medium transition-colors"
                       >
-                        <span>← Back to Home</span>
+                        <span>{t('pages:blog.backToHome')}</span>
                       </Link>
                     </div>
                   </div>
@@ -419,23 +421,23 @@ export default function BlogPage(): JSX.Element {
         {/* Call to Action */}
         <div className="mt-12 bg-white rounded-lg shadow-sm p-8 text-center">
           <h2 className="text-xl font-semibold text-gray-900 mb-3">
-            Ready to optimize your job applications?
+            {t('pages:blog.ctaTitle')}
           </h2>
           <p className="text-gray-600 mb-6">
-            Use our AI-powered tools to create tailored cover letters and optimize your resume for any job.
+            {t('pages:blog.ctaDescription')}
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Link 
+            <Link
               to="/"
               className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              Get Started Free
+              {t('pages:blog.getStartedFree')}
             </Link>
-            <Link 
+            <Link
               to="/pricing"
               className="px-6 py-3 bg-gray-100 text-gray-900 font-semibold rounded-lg hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              View Pricing
+              {t('pages:blog.viewPricing')}
             </Link>
           </div>
         </div>

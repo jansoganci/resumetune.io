@@ -118,6 +118,65 @@ const pages = {
     trySample: 'Örnek Verileri Dene',
     quickAnalyze: 'Hızlı analiz',
     ctrlEnter: 'Ctrl+Enter'
+  },
+
+  // Blog Page
+  blog: {
+    title: 'Kariyer Başarı Merkezi',
+    subtitle: 'İş aramanızı hızlandırmak için uzman görüşleri',
+    readersCount: '10.000+ okuyucu',
+    rating: '4.8/5 puan',
+    successRate: '%95 başarı oranı',
+    searchPlaceholder: 'Makaleleri ara...',
+    filterByTags: 'Etiketlere göre filtrele:',
+    activeFilters: 'Aktif filtreler:',
+    searchLabel: 'Arama:',
+    clearAll: 'Tümünü temizle',
+    home: 'Ana Sayfa',
+    blogLabel: 'Blog',
+    featuredArticle: 'Öne Çıkan Makale',
+    latestPost: 'En Son Gönderi',
+    readFullArticle: 'Tam Makaleyi Oku',
+    allArticles: 'Tüm Makaleler ({{count}})',
+    noArticlesTitle: 'Makale bulunamadı',
+    noArticlesSearch: '"{{term}}" ile eşleşen makale bulunamadı. Farklı anahtar kelimeler deneyin veya kategoriye göre göz atın.',
+    noArticlesTags: 'Seçilen etiket{{plural}} ile makale bulunamadı. Farklı etiketler seçmeyi deneyin veya tüm makalelere göz atın.',
+    noArticlesCategory: '"{{category}}" kategorisinde henüz makale yok. Yakında tekrar kontrol edin veya diğer kategorileri keşfedin.',
+    noArticlesFiltered: 'Filtre kombinasyonunuz hiçbir makaleyle eşleşmedi. Filtrelerinizi ayarlamayı deneyin veya tüm makalelere göz atın.',
+    noArticlesEmpty: 'Henüz makalemiz yok. Kariyer ipuçları ve özgeçmiş tavsiyeleri için yakında tekrar kontrol edin!',
+    clearAllFilters: 'Tüm Filtreleri Temizle',
+    browseByCategory: 'Kategoriye göre göz atın:',
+    popularTopics: 'Veya bu popüler konuları deneyin:',
+    backToHome: '← Ana Sayfaya Dön',
+    ctaTitle: 'İş başvurularınızı optimize etmeye hazır mısınız?',
+    ctaDescription: 'Yapay zeka destekli araçlarımızı kullanarak özelleştirilmiş ön yazılar oluşturun ve özgeçmişinizi herhangi bir iş için optimize edin.',
+    getStartedFree: 'Ücretsiz Başla',
+    viewPricing: 'Fiyatlandırmayı Görüntüle',
+    read: 'Oku'
+  },
+
+  // Blog Article
+  blogArticle: {
+    backToBlog: 'Bloga Dön',
+    share: 'Paylaş',
+    twitter: 'Twitter',
+    facebook: 'Facebook',
+    linkedin: 'LinkedIn',
+    copyLink: 'Bağlantıyı Kopyala',
+    copied: 'Kopyalandı!',
+    quickNavigation: 'Hızlı Gezinme',
+    readingInfo: 'Okuma Bilgisi',
+    readingTime: 'Okuma süresi',
+    category: 'Kategori',
+    published: 'Yayınlandı',
+    quickActions: 'Hızlı İşlemler',
+    tryResumeTune: 'ResumeTune\'u Dene',
+    moreArticles: 'Daha Fazla Makale',
+    relatedArticles: 'İlgili Makaleler',
+    ctaTitle: 'Bu ipuçlarını uygulamaya hazır mısınız?',
+    ctaDescription: 'Yapay zeka destekli araçlarımızı kullanarak profesyonel ön yazılar oluşturun ve özgeçmişinizi herhangi bir iş başvurusu için optimize edin. İş aramalarını hızlandıran binlerce profesyonele katılın.',
+    getStartedFree: 'Ücretsiz Başla',
+    viewPricing: 'Fiyatlandırmayı Görüntüle'
   }
 };
 

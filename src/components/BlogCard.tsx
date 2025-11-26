@@ -1,12 +1,14 @@
 import { Link } from 'react-router-dom';
 import { Calendar, Clock, ArrowRight } from 'lucide-react';
 import { BlogPost } from '../utils/blogLoader';
+import { useTranslation } from 'react-i18next';
 
 interface BlogCardProps {
   post: BlogPost;
 }
 
 export default function BlogCard({ post }: BlogCardProps): JSX.Element {
+  const { t } = useTranslation(['pages']);
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -68,7 +70,7 @@ export default function BlogCard({ post }: BlogCardProps): JSX.Element {
               </div>
             </div>
             <div className="flex items-center space-x-1 text-blue-600 group-hover:text-blue-700 transition-colors">
-              <span className="text-xs font-medium">Read</span>
+              <span className="text-xs font-medium">{t('pages:blog.read')}</span>
               <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
             </div>
           </div>

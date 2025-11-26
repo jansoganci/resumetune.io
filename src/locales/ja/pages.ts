@@ -118,6 +118,65 @@ const pages = {
     trySample: 'サンプルデータを試す',
     quickAnalyze: '迅速な分析',
     ctrlEnter: 'Ctrl+Enter'
+  },
+
+  // Blog Page
+  blog: {
+    title: 'キャリア成功ハブ',
+    subtitle: '就職活動を加速する専門家の洞察',
+    readersCount: '10,000+ 読者',
+    rating: '4.8/5 評価',
+    successRate: '95% 成功率',
+    searchPlaceholder: '記事を検索...',
+    filterByTags: 'タグでフィルタ：',
+    activeFilters: 'アクティブフィルタ：',
+    searchLabel: '検索：',
+    clearAll: 'すべてクリア',
+    home: 'ホーム',
+    blogLabel: 'ブログ',
+    featuredArticle: '注目の記事',
+    latestPost: '最新の投稿',
+    readFullArticle: '全文を読む',
+    allArticles: 'すべての記事 ({{count}})',
+    noArticlesTitle: '記事が見つかりません',
+    noArticlesSearch: '"{{term}}"に一致する記事が見つかりませんでした。別のキーワードを試すか、カテゴリで参照してください。',
+    noArticlesTags: '選択したタグに一致する記事が見つかりませんでした。別のタグを選択するか、すべての記事を参照してください。',
+    noArticlesCategory: '"{{category}}"カテゴリにはまだ記事がありません。後でもう一度確認するか、他のカテゴリを探索してください。',
+    noArticlesFiltered: 'フィルタの組み合わせが記事と一致しませんでした。フィルタを調整するか、すべての記事を参照してください。',
+    noArticlesEmpty: 'まだ記事がありません。キャリアのヒントと履歴書のアドバイスについて、後でもう一度確認してください！',
+    clearAllFilters: 'すべてのフィルタをクリア',
+    browseByCategory: 'カテゴリで参照：',
+    popularTopics: 'または、これらの人気トピックを試してください：',
+    backToHome: '← ホームに戻る',
+    ctaTitle: '求人応募を最適化する準備はできていますか？',
+    ctaDescription: 'AI搭載ツールを使用して、カスタマイズされたカバーレターを作成し、あらゆる仕事に合わせて履歴書を最適化しましょう。',
+    getStartedFree: '無料で始める',
+    viewPricing: '料金を見る',
+    read: '読む'
+  },
+
+  // Blog Article
+  blogArticle: {
+    backToBlog: 'ブログに戻る',
+    share: '共有',
+    twitter: 'Twitter',
+    facebook: 'Facebook',
+    linkedin: 'LinkedIn',
+    copyLink: 'リンクをコピー',
+    copied: 'コピーしました！',
+    quickNavigation: 'クイックナビゲーション',
+    readingInfo: '読書情報',
+    readingTime: '読書時間',
+    category: 'カテゴリ',
+    published: '公開日',
+    quickActions: 'クイックアクション',
+    tryResumeTune: 'Resumetuneを試す',
+    moreArticles: 'その他の記事',
+    relatedArticles: '関連記事',
+    ctaTitle: 'これらのヒントを実践する準備はできていますか？',
+    ctaDescription: 'AI搭載ツールを使用して、プロフェッショナルなカバーレターを作成し、あらゆる求人応募に合わせて履歴書を最適化しましょう。就職活動を加速した何千人もの専門家に参加してください。',
+    getStartedFree: '無料で始める',
+    viewPricing: '料金を見る'
   }
 };
 

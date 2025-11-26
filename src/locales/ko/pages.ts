@@ -118,6 +118,65 @@ const pages = {
     trySample: '샘플 데이터 시도',
     quickAnalyze: '빠른 분석',
     ctrlEnter: 'Ctrl+Enter'
+  },
+
+  // Blog Page
+  blog: {
+    title: '커리어 성공 허브',
+    subtitle: '구직 활동을 가속화하는 전문가 인사이트',
+    readersCount: '10,000+ 독자',
+    rating: '4.8/5 평점',
+    successRate: '95% 성공률',
+    searchPlaceholder: '기사 검색...',
+    filterByTags: '태그로 필터링:',
+    activeFilters: '활성 필터:',
+    searchLabel: '검색:',
+    clearAll: '모두 지우기',
+    home: '홈',
+    blogLabel: '블로그',
+    featuredArticle: '추천 기사',
+    latestPost: '최신 게시물',
+    readFullArticle: '전체 기사 읽기',
+    allArticles: '모든 기사 ({{count}})',
+    noArticlesTitle: '기사를 찾을 수 없음',
+    noArticlesSearch: '"{{term}}"와 일치하는 기사를 찾을 수 없습니다. 다른 키워드를 시도하거나 카테고리별로 검색하세요.',
+    noArticlesTags: '선택한 태그와 일치하는 기사를 찾을 수 없습니다. 다른 태그를 선택하거나 모든 기사를 검색하세요.',
+    noArticlesCategory: '"{{category}}" 카테고리에 아직 기사가 없습니다. 곧 다시 확인하거나 다른 카테고리를 탐색하세요.',
+    noArticlesFiltered: '필터 조합이 어떤 기사와도 일치하지 않습니다. 필터를 조정하거나 모든 기사를 검색하세요.',
+    noArticlesEmpty: '아직 기사가 없습니다. 커리어 팁과 이력서 조언을 위해 곧 다시 확인하세요!',
+    clearAllFilters: '모든 필터 지우기',
+    browseByCategory: '카테고리별 검색:',
+    popularTopics: '또는 이러한 인기 주제를 시도하세요:',
+    backToHome: '← 홈으로 돌아가기',
+    ctaTitle: '구직 지원서를 최적화할 준비가 되셨나요?',
+    ctaDescription: 'AI 도구를 사용하여 맞춤형 자기소개서를 작성하고 모든 직무에 맞게 이력서를 최적화하세요.',
+    getStartedFree: '무료로 시작',
+    viewPricing: '가격 보기',
+    read: '읽기'
+  },
+
+  // Blog Article
+  blogArticle: {
+    backToBlog: '블로그로 돌아가기',
+    share: '공유',
+    twitter: 'Twitter',
+    facebook: 'Facebook',
+    linkedin: 'LinkedIn',
+    copyLink: '링크 복사',
+    copied: '복사됨!',
+    quickNavigation: '빠른 탐색',
+    readingInfo: '읽기 정보',
+    readingTime: '읽기 시간',
+    category: '카테고리',
+    published: '게시일',
+    quickActions: '빠른 작업',
+    tryResumeTune: 'ResumeTune 시도',
+    moreArticles: '더 많은 기사',
+    relatedArticles: '관련 기사',
+    ctaTitle: '이 팁을 실천에 옮길 준비가 되셨나요?',
+    ctaDescription: 'AI 도구를 사용하여 전문 자기소개서를 작성하고 모든 구직 지원서에 맞게 이력서를 최적화하세요. 구직 활동을 가속화한 수천 명의 전문가와 함께하세요.',
+    getStartedFree: '무료로 시작',
+    viewPricing: '가격 보기'
   }
 };
 

@@ -118,6 +118,65 @@ const pages = {
     trySample: 'جرب البيانات النموذجية',
     quickAnalyze: 'تحليل سريع',
     ctrlEnter: 'Ctrl+Enter'
+  },
+
+  // Blog Page
+  blog: {
+    title: 'مركز النجاح المهني',
+    subtitle: 'رؤى الخبراء لتسريع بحثك عن عمل',
+    readersCount: 'أكثر من 10,000 قارئ',
+    rating: 'تقييم 4.8/5',
+    successRate: 'معدل نجاح 95%',
+    searchPlaceholder: 'ابحث عن المقالات...',
+    filterByTags: 'تصفية حسب الوسوم:',
+    activeFilters: 'المرشحات النشطة:',
+    searchLabel: 'بحث:',
+    clearAll: 'مسح الكل',
+    home: 'الرئيسية',
+    blogLabel: 'المدونة',
+    featuredArticle: 'مقال مميز',
+    latestPost: 'أحدث منشور',
+    readFullArticle: 'قراءة المقال كاملاً',
+    allArticles: 'جميع المقالات ({{count}})',
+    noArticlesTitle: 'لم يتم العثور على مقالات',
+    noArticlesSearch: 'لم نتمكن من العثور على مقالات تطابق "{{term}}". جرب كلمات رئيسية مختلفة أو تصفح حسب الفئة.',
+    noArticlesTags: 'لم يتم العثور على مقالات بالوسم المحدد. حاول تحديد وسوم مختلفة أو تصفح جميع المقالات.',
+    noArticlesCategory: 'لا توجد مقالات في فئة "{{category}}" حتى الآن. تحقق مرة أخرى قريبًا أو استكشف فئات أخرى.',
+    noArticlesFiltered: 'لم تطابق مجموعة المرشحات أي مقالات. حاول تعديل المرشحات أو تصفح جميع المقالات.',
+    noArticlesEmpty: 'ليس لدينا أي مقالات حتى الآن. تحقق مرة أخرى قريبًا للحصول على نصائح مهنية ونصائح السيرة الذاتية!',
+    clearAllFilters: 'مسح جميع المرشحات',
+    browseByCategory: 'تصفح حسب الفئة:',
+    popularTopics: 'أو جرب هذه المواضيع الشائعة:',
+    backToHome: '→ العودة إلى الرئيسية',
+    ctaTitle: 'هل أنت مستعد لتحسين طلبات التوظيف؟',
+    ctaDescription: 'استخدم أدواتنا المدعومة بالذكاء الاصطناعي لإنشاء خطابات تغطية مخصصة وتحسين سيرتك الذاتية لأي وظيفة.',
+    getStartedFree: 'ابدأ مجانًا',
+    viewPricing: 'عرض الأسعار',
+    read: 'قراءة'
+  },
+
+  // Blog Article
+  blogArticle: {
+    backToBlog: 'العودة إلى المدونة',
+    share: 'مشاركة',
+    twitter: 'تويتر',
+    facebook: 'فيسبوك',
+    linkedin: 'لينكد إن',
+    copyLink: 'نسخ الرابط',
+    copied: 'تم النسخ!',
+    quickNavigation: 'التنقل السريع',
+    readingInfo: 'معلومات القراءة',
+    readingTime: 'وقت القراءة',
+    category: 'الفئة',
+    published: 'منشور',
+    quickActions: 'إجراءات سريعة',
+    tryResumeTune: 'جرب ResumeTune',
+    moreArticles: 'المزيد من المقالات',
+    relatedArticles: 'مقالات ذات صلة',
+    ctaTitle: 'هل أنت مستعد لوضع هذه النصائح موضع التنفيذ؟',
+    ctaDescription: 'استخدم أدواتنا المدعومة بالذكاء الاصطناعي لإنشاء خطابات تغطية احترافية وتحسين سيرتك الذاتية لأي طلب وظيفة. انضم إلى آلاف المحترفين الذين سرعوا من بحثهم عن عمل.',
+    getStartedFree: 'ابدأ مجانًا',
+    viewPricing: 'عرض الأسعار'
   }
 };
 

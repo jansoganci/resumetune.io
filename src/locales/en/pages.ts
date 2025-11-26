@@ -118,6 +118,65 @@ const pages = {
     trySample: 'Try Sample Data',
     quickAnalyze: 'Quick analyze',
     ctrlEnter: 'Ctrl+Enter'
+  },
+
+  // Blog Page
+  blog: {
+    title: 'Career Success Hub',
+    subtitle: 'Expert insights to accelerate your job search',
+    readersCount: '10,000+ readers',
+    rating: '4.8/5 rating',
+    successRate: '95% success rate',
+    searchPlaceholder: 'Search articles...',
+    filterByTags: 'Filter by tags:',
+    activeFilters: 'Active filters:',
+    searchLabel: 'Search:',
+    clearAll: 'Clear all',
+    home: 'Home',
+    blogLabel: 'Blog',
+    featuredArticle: 'Featured Article',
+    latestPost: 'Latest Post',
+    readFullArticle: 'Read Full Article',
+    allArticles: 'All Articles ({{count}})',
+    noArticlesTitle: 'No articles found',
+    noArticlesSearch: 'We couldn\'t find any articles matching "{{term}}". Try different keywords or browse by category.',
+    noArticlesTags: 'No articles found with the selected tag{{plural}}. Try selecting different tags or browse all articles.',
+    noArticlesCategory: 'No articles found in the "{{category}}" category yet. Check back soon or explore other categories.',
+    noArticlesFiltered: 'Your filter combination didn\'t match any articles. Try adjusting your filters or browse all articles.',
+    noArticlesEmpty: 'We don\'t have any articles yet. Check back soon for career tips and resume advice!',
+    clearAllFilters: 'Clear All Filters',
+    browseByCategory: 'Browse by category:',
+    popularTopics: 'Or try these popular topics:',
+    backToHome: '← Back to Home',
+    ctaTitle: 'Ready to optimize your job applications?',
+    ctaDescription: 'Use our AI-powered tools to create tailored cover letters and optimize your resume for any job.',
+    getStartedFree: 'Get Started Free',
+    viewPricing: 'View Pricing',
+    read: 'Read'
+  },
+
+  // Blog Article
+  blogArticle: {
+    backToBlog: 'Back to Blog',
+    share: 'Share',
+    twitter: 'Twitter',
+    facebook: 'Facebook',
+    linkedin: 'LinkedIn',
+    copyLink: 'Copy Link',
+    copied: 'Copied!',
+    quickNavigation: 'Quick Navigation',
+    readingInfo: 'Reading Info',
+    readingTime: 'Reading time',
+    category: 'Category',
+    published: 'Published',
+    quickActions: 'Quick Actions',
+    tryResumeTune: 'Try ResumeTune',
+    moreArticles: 'More Articles',
+    relatedArticles: 'Related Articles',
+    ctaTitle: 'Ready to put these tips into action?',
+    ctaDescription: 'Use our AI-powered tools to create professional cover letters and optimize your resume for any job application. Join thousands of professionals who\'ve accelerated their job search.',
+    getStartedFree: 'Get Started Free',
+    viewPricing: 'View Pricing'
   }
 };
 

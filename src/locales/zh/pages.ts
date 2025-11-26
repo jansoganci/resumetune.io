@@ -118,6 +118,65 @@ const pages = {
     trySample: '试用示例数据',
     quickAnalyze: '快速分析',
     ctrlEnter: 'Ctrl+Enter'
+  },
+
+  // Blog Page
+  blog: {
+    title: '职业成功中心',
+    subtitle: '加速您求职的专家见解',
+    readersCount: '10,000+ 读者',
+    rating: '4.8/5 评分',
+    successRate: '95% 成功率',
+    searchPlaceholder: '搜索文章...',
+    filterByTags: '按标签筛选：',
+    activeFilters: '活跃筛选：',
+    searchLabel: '搜索：',
+    clearAll: '清除全部',
+    home: '首页',
+    blogLabel: '博客',
+    featuredArticle: '精选文章',
+    latestPost: '最新文章',
+    readFullArticle: '阅读全文',
+    allArticles: '所有文章 ({{count}})',
+    noArticlesTitle: '未找到文章',
+    noArticlesSearch: '我们找不到与"{{term}}"匹配的文章。请尝试不同的关键词或按类别浏览。',
+    noArticlesTags: '未找到带有所选标签的文章。请尝试选择不同的标签或浏览所有文章。',
+    noArticlesCategory: '"{{category}}"类别中还没有文章。请稍后查看或浏览其他类别。',
+    noArticlesFiltered: '您的筛选组合没有匹配任何文章。请尝试调整筛选条件或浏览所有文章。',
+    noArticlesEmpty: '我们还没有文章。请稍后查看职业提示和简历建议！',
+    clearAllFilters: '清除所有筛选',
+    browseByCategory: '按类别浏览：',
+    popularTopics: '或尝试这些热门话题：',
+    backToHome: '← 返回首页',
+    ctaTitle: '准备好优化您的求职申请了吗？',
+    ctaDescription: '使用我们的AI工具创建定制的求职信并为任何工作优化您的简历。',
+    getStartedFree: '免费开始',
+    viewPricing: '查看定价',
+    read: '阅读'
+  },
+
+  // Blog Article
+  blogArticle: {
+    backToBlog: '返回博客',
+    share: '分享',
+    twitter: 'Twitter',
+    facebook: 'Facebook',
+    linkedin: 'LinkedIn',
+    copyLink: '复制链接',
+    copied: '已复制！',
+    quickNavigation: '快速导航',
+    readingInfo: '阅读信息',
+    readingTime: '阅读时间',
+    category: '类别',
+    published: '发布于',
+    quickActions: '快速操作',
+    tryResumeTune: '试用 ResumeTune',
+    moreArticles: '更多文章',
+    relatedArticles: '相关文章',
+    ctaTitle: '准备好将这些提示付诸实践了吗？',
+    ctaDescription: '使用我们的AI工具创建专业求职信并为任何求职申请优化您的简历。加入数千名加速求职的专业人士。',
+    getStartedFree: '免费开始',
+    viewPricing: '查看定价'
   }
 };
 

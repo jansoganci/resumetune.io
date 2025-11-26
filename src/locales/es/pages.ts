@@ -118,6 +118,65 @@ const pages = {
     trySample: 'Probar datos de muestra',
     quickAnalyze: 'Análisis rápido',
     ctrlEnter: 'Ctrl+Enter'
+  },
+
+  // Blog Page
+  blog: {
+    title: 'Centro de Éxito Profesional',
+    subtitle: 'Conocimientos expertos para acelerar tu búsqueda de empleo',
+    readersCount: 'Más de 10,000 lectores',
+    rating: 'Calificación 4.8/5',
+    successRate: 'Tasa de éxito del 95%',
+    searchPlaceholder: 'Buscar artículos...',
+    filterByTags: 'Filtrar por etiquetas:',
+    activeFilters: 'Filtros activos:',
+    searchLabel: 'Búsqueda:',
+    clearAll: 'Borrar todo',
+    home: 'Inicio',
+    blogLabel: 'Blog',
+    featuredArticle: 'Artículo destacado',
+    latestPost: 'Última publicación',
+    readFullArticle: 'Leer artículo completo',
+    allArticles: 'Todos los artículos ({{count}})',
+    noArticlesTitle: 'No se encontraron artículos',
+    noArticlesSearch: 'No pudimos encontrar artículos que coincidan con "{{term}}". Prueba con diferentes palabras clave o navega por categoría.',
+    noArticlesTags: 'No se encontraron artículos con la{{plural}} etiqueta{{plural}} seleccionada{{plural}}. Intenta seleccionar diferentes etiquetas o navega por todos los artículos.',
+    noArticlesCategory: 'Aún no hay artículos en la categoría "{{category}}". Vuelve pronto o explora otras categorías.',
+    noArticlesFiltered: 'Tu combinación de filtros no coincidió con ningún artículo. Intenta ajustar tus filtros o navega por todos los artículos.',
+    noArticlesEmpty: 'Aún no tenemos artículos. ¡Vuelve pronto para consejos profesionales y de currículum!',
+    clearAllFilters: 'Borrar todos los filtros',
+    browseByCategory: 'Navegar por categoría:',
+    popularTopics: 'O prueba estos temas populares:',
+    backToHome: '← Volver al inicio',
+    ctaTitle: '¿Listo para optimizar tus solicitudes de empleo?',
+    ctaDescription: 'Usa nuestras herramientas impulsadas por IA para crear cartas de presentación personalizadas y optimizar tu currículum para cualquier trabajo.',
+    getStartedFree: 'Comenzar gratis',
+    viewPricing: 'Ver precios',
+    read: 'Leer'
+  },
+
+  // Blog Article
+  blogArticle: {
+    backToBlog: 'Volver al blog',
+    share: 'Compartir',
+    twitter: 'Twitter',
+    facebook: 'Facebook',
+    linkedin: 'LinkedIn',
+    copyLink: 'Copiar enlace',
+    copied: '¡Copiado!',
+    quickNavigation: 'Navegación rápida',
+    readingInfo: 'Información de lectura',
+    readingTime: 'Tiempo de lectura',
+    category: 'Categoría',
+    published: 'Publicado',
+    quickActions: 'Acciones rápidas',
+    tryResumeTune: 'Probar ResumeTune',
+    moreArticles: 'Más artículos',
+    relatedArticles: 'Artículos relacionados',
+    ctaTitle: '¿Listo para poner estos consejos en práctica?',
+    ctaDescription: 'Usa nuestras herramientas impulsadas por IA para crear cartas de presentación profesionales y optimizar tu currículum para cualquier solicitud de empleo. Únete a miles de profesionales que han acelerado su búsqueda de empleo.',
+    getStartedFree: 'Comenzar gratis',
+    viewPricing: 'Ver precios'
   }
 };
 

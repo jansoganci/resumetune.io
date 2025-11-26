@@ -118,6 +118,65 @@ const pages = {
     trySample: 'Beispieldaten ausprobieren',
     quickAnalyze: 'Schnellanalyse',
     ctrlEnter: 'Strg+Enter'
+  },
+
+  // Blog Page
+  blog: {
+    title: 'Karriere-Erfolgs-Hub',
+    subtitle: 'Experteneinblicke zur Beschleunigung Ihrer Jobsuche',
+    readersCount: 'Über 10.000 Leser',
+    rating: '4,8/5 Bewertung',
+    successRate: '95% Erfolgsquote',
+    searchPlaceholder: 'Artikel suchen...',
+    filterByTags: 'Nach Tags filtern:',
+    activeFilters: 'Aktive Filter:',
+    searchLabel: 'Suche:',
+    clearAll: 'Alle löschen',
+    home: 'Startseite',
+    blogLabel: 'Blog',
+    featuredArticle: 'Empfohlener Artikel',
+    latestPost: 'Neuester Beitrag',
+    readFullArticle: 'Vollständigen Artikel lesen',
+    allArticles: 'Alle Artikel ({{count}})',
+    noArticlesTitle: 'Keine Artikel gefunden',
+    noArticlesSearch: 'Wir konnten keine Artikel finden, die "{{term}}" entsprechen. Versuchen Sie andere Schlüsselwörter oder durchsuchen Sie nach Kategorie.',
+    noArticlesTags: 'Keine Artikel mit dem ausgewählten Tag{{plural}} gefunden. Versuchen Sie, andere Tags auszuwählen oder durchsuchen Sie alle Artikel.',
+    noArticlesCategory: 'Noch keine Artikel in der Kategorie "{{category}}" gefunden. Schauen Sie bald wieder vorbei oder erkunden Sie andere Kategorien.',
+    noArticlesFiltered: 'Ihre Filterkombination hat keine Artikel gefunden. Passen Sie Ihre Filter an oder durchsuchen Sie alle Artikel.',
+    noArticlesEmpty: 'Wir haben noch keine Artikel. Schauen Sie bald wieder vorbei für Karrieretipps und Lebenslauf-Ratschläge!',
+    clearAllFilters: 'Alle Filter löschen',
+    browseByCategory: 'Nach Kategorie durchsuchen:',
+    popularTopics: 'Oder probieren Sie diese beliebten Themen:',
+    backToHome: '← Zurück zur Startseite',
+    ctaTitle: 'Bereit, Ihre Bewerbungen zu optimieren?',
+    ctaDescription: 'Nutzen Sie unsere KI-gestützten Tools, um maßgeschneiderte Anschreiben zu erstellen und Ihren Lebenslauf für jede Stelle zu optimieren.',
+    getStartedFree: 'Kostenlos starten',
+    viewPricing: 'Preise ansehen',
+    read: 'Lesen'
+  },
+
+  // Blog Article
+  blogArticle: {
+    backToBlog: 'Zurück zum Blog',
+    share: 'Teilen',
+    twitter: 'Twitter',
+    facebook: 'Facebook',
+    linkedin: 'LinkedIn',
+    copyLink: 'Link kopieren',
+    copied: 'Kopiert!',
+    quickNavigation: 'Schnellnavigation',
+    readingInfo: 'Leseinformationen',
+    readingTime: 'Lesezeit',
+    category: 'Kategorie',
+    published: 'Veröffentlicht',
+    quickActions: 'Schnellaktionen',
+    tryResumeTune: 'ResumeTune ausprobieren',
+    moreArticles: 'Weitere Artikel',
+    relatedArticles: 'Verwandte Artikel',
+    ctaTitle: 'Bereit, diese Tipps in die Tat umzusetzen?',
+    ctaDescription: 'Nutzen Sie unsere KI-gestützten Tools, um professionelle Anschreiben zu erstellen und Ihren Lebenslauf für jede Bewerbung zu optimieren. Schließen Sie sich Tausenden von Fachleuten an, die ihre Jobsuche beschleunigt haben.',
+    getStartedFree: 'Kostenlos starten',
+    viewPricing: 'Preise ansehen'
   }
 };
 

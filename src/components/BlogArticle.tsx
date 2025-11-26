@@ -4,6 +4,7 @@ import { BlogPost } from '../utils/blogLoader';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { SOCIAL_SHARE_URLS } from '../config/constants';
 import DOMPurify from 'dompurify';
+import { useTranslation } from 'react-i18next';
 
 interface BlogArticleProps {
   post: BlogPost;
@@ -11,6 +12,7 @@ interface BlogArticleProps {
 }
 
 export default function BlogArticle({ post, relatedPosts = [] }: BlogArticleProps): JSX.Element {
+  const { t } = useTranslation(['pages']);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -101,12 +103,12 @@ export default function BlogArticle({ post, relatedPosts = [] }: BlogArticleProp
     <div className="max-w-6xl mx-auto">
       {/* Back to Blog */}
       <div className="mb-8">
-        <Link 
+        <Link
           to="/blog"
           className="inline-flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors group"
         >
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-          <span>Back to Blog</span>
+          <span>{t('pages:blogArticle.backToBlog')}</span>
         </Link>
       </div>
 
@@ -163,7 +165,7 @@ export default function BlogArticle({ post, relatedPosts = [] }: BlogArticleProp
                     className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
                   >
                     <Share2 className="w-4 h-4" />
-                    <span>Share</span>
+                    <span>{t('pages:blogArticle.share')}</span>
                   </button>
                   
                   {showShareMenu && (
@@ -173,28 +175,28 @@ export default function BlogArticle({ post, relatedPosts = [] }: BlogArticleProp
                         className="w-full flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                       >
                         <Twitter className="w-4 h-4 text-blue-400" />
-                        <span>Twitter</span>
+                        <span>{t('pages:blogArticle.twitter')}</span>
                       </button>
                       <button
                         onClick={() => handleShare('facebook')}
                         className="w-full flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                       >
                         <Facebook className="w-4 h-4 text-blue-600" />
-                        <span>Facebook</span>
+                        <span>{t('pages:blogArticle.facebook')}</span>
                       </button>
                       <button
                         onClick={() => handleShare('linkedin')}
                         className="w-full flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                       >
                         <Linkedin className="w-4 h-4 text-blue-700" />
-                        <span>LinkedIn</span>
+                        <span>{t('pages:blogArticle.linkedin')}</span>
                       </button>
                       <button
                         onClick={() => handleShare('copy')}
                         className="w-full flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                       >
                         {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
-                        <span>{copied ? 'Copied!' : 'Copy Link'}</span>
+                        <span>{copied ? t('pages:blogArticle.copied') : t('pages:blogArticle.copyLink')}</span>
                       </button>
                     </div>
                   )}
@@ -256,7 +258,7 @@ export default function BlogArticle({ post, relatedPosts = [] }: BlogArticleProp
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                   <BookOpen className="w-5 h-5 text-blue-600 mr-2" />
-                  Quick Navigation
+                  {t('pages:blogArticle.quickNavigation')}
                 </h3>
                 <nav className="space-y-2 text-sm">
                   {post.headings.map((heading) => (
@@ -285,18 +287,18 @@ export default function BlogArticle({ post, relatedPosts = [] }: BlogArticleProp
 
             {/* Reading Stats */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Reading Info</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('pages:blogArticle.readingInfo')}</h3>
               <div className="space-y-3 text-sm text-gray-600">
                 <div className="flex items-center justify-between">
-                  <span>Reading time</span>
+                  <span>{t('pages:blogArticle.readingTime')}</span>
                   <span className="font-medium">{post.readTime}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span>Category</span>
+                  <span>{t('pages:blogArticle.category')}</span>
                   <span className="font-medium">{post.category}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span>Published</span>
+                  <span>{t('pages:blogArticle.published')}</span>
                   <span className="font-medium">{formatDate(post.date)}</span>
                 </div>
               </div>
@@ -304,19 +306,19 @@ export default function BlogArticle({ post, relatedPosts = [] }: BlogArticleProp
 
             {/* Quick Actions */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('pages:blogArticle.quickActions')}</h3>
               <div className="space-y-3">
-                <Link 
+                <Link
                   to="/"
                   className="block w-full px-4 py-2 bg-blue-600 text-white text-center rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
                 >
-                  Try ResumeTune
+                  {t('pages:blogArticle.tryResumeTune')}
                 </Link>
-                <Link 
+                <Link
                   to="/blog"
                   className="block w-full px-4 py-2 bg-gray-100 text-gray-700 text-center rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
                 >
-                  More Articles
+                  {t('pages:blogArticle.moreArticles')}
                 </Link>
               </div>
             </div>
@@ -329,7 +331,7 @@ export default function BlogArticle({ post, relatedPosts = [] }: BlogArticleProp
         <section className="mt-16 pt-8 border-t border-gray-200">
           <h2 className="text-2xl font-semibold text-gray-900 mb-8 flex items-center">
             <span className="w-3 h-3 bg-blue-600 rounded-full mr-3"></span>
-            Related Articles
+            {t('pages:blogArticle.relatedArticles')}
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {relatedPosts.map((relatedPost) => (
@@ -362,24 +364,23 @@ export default function BlogArticle({ post, relatedPosts = [] }: BlogArticleProp
       {/* Enhanced Call to Action */}
       <div className="mt-16 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-8 md:p-12 text-center border border-blue-100">
         <h2 className="text-2xl font-semibold text-gray-900 mb-4">
-          Ready to put these tips into action?
+          {t('pages:blogArticle.ctaTitle')}
         </h2>
         <p className="text-gray-600 mb-8 max-w-2xl mx-auto">
-          Use our AI-powered tools to create professional cover letters and optimize your resume for any job application. 
-          Join thousands of professionals who've accelerated their job search.
+          {t('pages:blogArticle.ctaDescription')}
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Link 
+          <Link
             to="/"
             className="px-8 py-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-lg"
           >
-            Get Started Free
+            {t('pages:blogArticle.getStartedFree')}
           </Link>
-          <Link 
+          <Link
             to="/pricing"
             className="px-8 py-4 bg-white text-gray-900 font-semibold rounded-lg hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-200"
           >
-            View Pricing
+            {t('pages:blogArticle.viewPricing')}
           </Link>
         </div>
       </div>
