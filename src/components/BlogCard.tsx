@@ -8,9 +8,9 @@ interface BlogCardProps {
 }
 
 export default function BlogCard({ post }: BlogCardProps): JSX.Element {
-  const { t } = useTranslation(['pages']);
+  const { t, i18n } = useTranslation(['pages']);
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return new Date(dateString).toLocaleDateString(i18n.language, {
       year: 'numeric',
       month: 'long',
       day: 'numeric'

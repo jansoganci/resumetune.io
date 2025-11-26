@@ -12,7 +12,7 @@ interface BlogArticleProps {
 }
 
 export default function BlogArticle({ post, relatedPosts = [] }: BlogArticleProps): JSX.Element {
-  const { t } = useTranslation(['pages']);
+  const { t, i18n } = useTranslation(['pages']);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -46,7 +46,7 @@ export default function BlogArticle({ post, relatedPosts = [] }: BlogArticleProp
   }, []);
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return new Date(dateString).toLocaleDateString(i18n.language, {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
